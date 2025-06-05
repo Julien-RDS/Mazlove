@@ -19,165 +19,82 @@
 
 package com.codename1.demos.grub.controllers;
 
-import com.codename1.demos.grub.interfaces.CompletedOrder;
-import com.codename1.demos.grub.interfaces.MainWindow;
-import com.codename1.demos.grub.models.AccountModel;
-import com.codename1.demos.grub.models.RestaurantModel;
-import com.codename1.demos.grub.views.*;
-import com.codename1.rad.controllers.Controller;
-import com.codename1.rad.controllers.FormController;
-import com.codename1.rad.models.Entity;
-import com.codename1.rad.models.EntityList;
-import com.codename1.rad.nodes.ActionNode;
-import com.codename1.rad.nodes.Node;
-import com.codename1.rad.nodes.ViewNode;
-import com.codename1.rad.ui.UI;
 import com.codename1.ui.Form;
+import com.codename1.demos.grub.services.NavigationService;
+import com.codename1.demos.grub.services.NavigationServiceImpl;
 import com.codename1.ui.layouts.BorderLayout;
+import com.codename1.ui.util.Resources;
+import com.codename1.demos.grub.services.ResourceService;
+import com.codename1.demos.grub.services.ResourceServiceImpl;
+import com.codename1.demos.grub.views.MainWindowView;
+import com.codename1.demos.grub.interfaces.CuddleProvider;
+import com.codename1.demos.grub.models.Order;
+import com.codename1.demos.grub.controllers.RestaurantControllerNew;
+import com.codename1.demos.grub.controllers.FilterController;
+import com.codename1.demos.grub.controllers.SearchController;
+import com.codename1.demos.grub.controllers.EditProfileController;
+import com.codename1.demos.grub.controllers.EditAddressesController;
+import com.codename1.demos.grub.controllers.EditCreditCardsController;
 
-public class MainWindowController extends FormController {
+public class MainWindowController {
+    private final Form mainForm;
+    private final ResourceService resourceService;
+    private MainWindowView mainWindowView;
+    private NavigationService navigationService;
 
-    MainWindowView mainWindowView;
-
-    public static final ActionNode editProfile = UI.action();
-    public static final ActionNode editAddresses = UI.action();
-    public static final ActionNode editCreditCards = UI.action();
-    public static final ActionNode logOut = UI.action();
-    public static final ActionNode updateProfileView = UI.action();
-
-    public static final ActionNode enterRest = UI.action();
-    public static final ActionNode recommendedExplore = UI.action();
-    public static final ActionNode popularExplore = UI.action();
-
-    public static final ActionNode enterFilter = UI.action();
-    public static final ActionNode enterSearch = UI.action();
-
-    public static final ActionNode addFavorite = UI.action();
-    public static final ActionNode removeFavorite = UI.action();
-
-    public static final ActionNode addCompletedOrder = UI.action();
-    public static final ActionNode orderAgain = UI.action();
-
-
-    public MainWindowController(Controller parent, Entity appEntity, Node appNode) {
-        super(parent);
-        Form mainWindowForm = new Form(new BorderLayout());
-        mainWindowForm.getToolbar().hideToolbar();
-        Node profileNode = createProfileNode();
-        Node homeNode = createHomeNode();
-
-        mainWindowView = new MainWindowView(appEntity, profileNode, homeNode, appNode);
-        mainWindowForm.add(BorderLayout.CENTER, mainWindowView);
-
-        setView(mainWindowForm);
-
-        addActionListener(editProfile, evt -> {
-            evt.consume();
-            Entity accountEntity = evt.getEntity();
-            new EditProfileController(this, accountEntity, profileNode).getView().show();
-        });
-
-        addActionListener(editAddresses, evt -> {
-            evt.consume();
-            AccountModel accountEntity = (AccountModel)evt.getEntity();
-            new EditAddressesController(this, accountEntity).getView().show();
-        });
-
-        addActionListener(editCreditCards, evt -> {
-            evt.consume();
-            AccountModel account = (AccountModel)evt.getEntity();
-            new EditCreditCardsController(this, account).getView().show();
-
-        });
-
-        addActionListener(enterRest, evt -> {
-            evt.consume();
-            Entity restEntity = evt.getEntity();
-            new RestaurantController(this, restEntity, appEntity.getEntity(MainWindow.profile), homeNode).getView().show();
-        });
-
-        addActionListener(enterFilter, evt -> {
-            evt.consume();
-            new FilterController(this, appEntity.getEntity(MainWindow.filter), homeNode).getView().show();
-        });
-
-        addActionListener(enterSearch, evt -> {
-            evt.consume();
-            new SearchController(this, appEntity, homeNode).getView().show();
-        });
-
-        addActionListener(addFavorite, evt -> {
-            evt.consume();
-            if(appEntity.get(MainWindow.profile) instanceof AccountModel){
-                ((AccountModel) appEntity.get(MainWindow.profile)).addFavorite(evt.getEntity());
-            }
-            mainWindowView.addFavorite(evt.getEntity());
-        });
-
-        addActionListener(removeFavorite, evt -> {
-            evt.consume();
-            if(appEntity.get(MainWindow.profile) instanceof AccountModel){
-                ((AccountModel) appEntity.get(MainWindow.profile)).removeFavorite(evt.getEntity());
-            }
-            mainWindowView.removeFavorite(evt.getEntity());
-        });
-
-        addActionListener(addCompletedOrder, evt -> {
-            evt.consume();
-            Entity completedOrder = evt.getEntity();
-            Entity rest = completedOrder.getEntity(CompletedOrder.restaurant);
-            if (rest instanceof RestaurantModel){
-                ((RestaurantModel) rest).clearOrder();
-            }
-            mainWindowView.addCompletedOrder(completedOrder);
-            mainWindowView.moveToOrders();
-            this.getView().showBack();
-        });
-
-        addActionListener(orderAgain, evt -> {
-            evt.consume();
-            Entity completedOrder = evt.getEntity();
-            RestaurantModel rest = (RestaurantModel) completedOrder.getEntity(CompletedOrder.restaurant);
-            if (completedOrder.get(CompletedOrder.order) instanceof EntityList){
-                EntityList<Entity> dishesList = (EntityList<Entity>) completedOrder.get(CompletedOrder.order);
-                for (Entity dish : dishesList){
-                    rest.addToOrder(dish);
-                }
-            }
-            new RestaurantController(this, rest, appEntity.getEntity(MainWindow.profile), homeNode).getView().show();
-
-        });
-
-
+    public MainWindowController(Form mainForm, ResourceService resourceService) {
+        this.mainForm = mainForm;
+        this.resourceService = resourceService;
+        initialize();
     }
 
-    private Node createProfileNode(){
-        return new ViewNode(
-                UI.actions(ProfileView.EDIT_PROFILE, editProfile),
-                UI.actions(ProfileView.EDIT_ADDRESSES, editAddresses),
-                UI.actions(ProfileView.EDIT_CREDIT_CARDS, editCreditCards),
-                UI.actions(ProfileView.UPDATE_VIEW, logOut),
-                UI.actions(ProfileView.LOG_OUT, updateProfileView)
-        );
+    public void initialize() {
+        navigationService = new NavigationServiceImpl();
+        navigationService.initialize(mainForm);
+
+        mainWindowView = new MainWindowView(resourceService.getGlobalResources());
+
+        mainWindowView.setProviderAction(provider -> {
+            new RestaurantControllerNew(mainForm, provider, resourceService.getGlobalResources());
+        });
+        mainWindowView.setFilterAction(() -> {
+            new FilterController(mainForm, resourceService.getGlobalResources());
+        });
+        mainWindowView.setSearchAction(() -> {
+            new SearchController(mainForm, resourceService.getGlobalResources());
+        });
+        mainWindowView.setAddFavoriteAction(provider -> {
+            mainWindowView.toggleFavorite(provider);
+        });
+        mainWindowView.setEditProfileAction(() -> {
+            new EditProfileController("", resourceService.getGlobalResources());
+        });
+        mainWindowView.setEditAddressesAction(() -> {
+            new EditAddressesController(mainForm, "", resourceService.getGlobalResources());
+        });
+        mainWindowView.setEditCreditCardsAction(() -> {
+            new EditCreditCardsController(mainForm, "", resourceService.getGlobalResources());
+        });
+        mainWindowView.setAddCompletedOrderAction(order -> {
+            // TODO: Implémenter AddCompletedOrderController
+        });
+        mainWindowView.setOrderAgainAction(order -> {
+            // TODO: Implémenter OrderAgainController
+        });
+
+        // Ajout de la vue au formulaire parent
+        mainForm.add(mainWindowView);
+        mainForm.show();
+
+        // Navigation initiale
+        mainWindowView.showProviderTab();
     }
 
-    private Node createHomeNode(){
-        return new ViewNode(
-                UI.actions(HomeView.ENTER_REST, enterRest),
-                UI.actions(HomeView.RECOMMENDED_EXPLORE, recommendedExplore),
-                UI.actions(HomeView.POPULAR_EXPLORE, popularExplore),
-                UI.actions(HomeView.ENTER_FILTER, enterFilter),
-                UI.actions(HomeView.ENTER_SEARCH, enterSearch),
-                UI.actions(RestaurantView.ADD_TO_FAVORITE, addFavorite),
-                UI.actions(RestaurantView.REMOVE_FAVORITE, removeFavorite),
-                UI.actions(OrderView.COMPLETE_ORDER, addCompletedOrder),
-                UI.actions(CompletedOrderView.ORDER_AGAIN, orderAgain)
-
-        );
+    public void updateDefaultAddressView() {
+        // TODO: Implémenter la mise à jour de l'adresse par défaut
     }
 
-    public void updateDefaultAddressView(){
-        mainWindowView.updateDefaultAddressView();
+    public void showProvider(String providerId) {
+        // TODO: Implémenter l'affichage du prestataire
     }
-
 }

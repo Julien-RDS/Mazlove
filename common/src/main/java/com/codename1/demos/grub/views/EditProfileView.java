@@ -21,40 +21,28 @@
 package com.codename1.demos.grub.views;
 
 import com.codename1.demos.grub.interfaces.Account;
-import com.codename1.rad.controllers.ActionSupport;
 import com.codename1.rad.controllers.FormController;
 import com.codename1.rad.models.Entity;
 import com.codename1.rad.models.Property;
 import com.codename1.rad.nodes.Node;
 import com.codename1.rad.ui.AbstractEntityView;
 import com.codename1.ui.*;
-import com.codename1.ui.layouts.BorderLayout;
-import com.codename1.ui.layouts.BoxLayout;
-import com.codename1.ui.plaf.UIManager;
-import com.codename1.ui.validation.LengthConstraint;
-import com.codename1.ui.validation.RegexConstraint;
-import com.codename1.ui.validation.Validator;
+import com.codename1.ui.layouts.*;
+import com.codename1.ui.util.Resources;
 
+public class EditProfileView extends Container {
+    private String userId;
+    private Resources globalResources;
 
-public class EditProfileView extends AbstractEntityView {
-
-    Node viewNode;
-    Property firstNameProp, lastNameProp, emailProp, passwordProp, mobileNumberProp;
-
-    public EditProfileView(Entity entity, Node viewNode) {
-        super(entity);
-        this.viewNode = viewNode;
-        setLayout(new BorderLayout(BorderLayout.CENTER_BEHAVIOR_CENTER_ABSOLUTE));
-        Container wrapper = new Container(new BoxLayout(BoxLayout.Y_AXIS));
-        wrapper.setScrollVisible(false);
-        wrapper.setScrollableY(true);
-        setUIID("EditProfile");
-
-        firstNameProp = entity.findProperty(Account.firstName);
-        lastNameProp = entity.findProperty(Account.lastName);
-        emailProp = entity.findProperty(Account.emailAddress);
-        passwordProp = entity.findProperty(Account.password);
-        mobileNumberProp = entity.findProperty(Account.mobileNumber);
+    public EditProfileView(String userId, Resources globalResources) {
+        super(new BorderLayout());
+        this.userId = userId;
+        this.globalResources = globalResources;
+        
+        // Configuration du conteneur principal
+        Container mainContainer = new Container(new BoxLayout(BoxLayout.Y_AXIS));
+        mainContainer.setScrollableY(true);
+        add(BorderLayout.CENTER, mainContainer);
 
         Button backButton = new Button(FontImage.MATERIAL_KEYBOARD_ARROW_LEFT);
         backButton.setUIID("EditProfileBackButton");

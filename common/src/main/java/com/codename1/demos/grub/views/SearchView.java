@@ -22,55 +22,85 @@ package com.codename1.demos.grub.views;
 
 import com.codename1.demos.grub.interfaces.MainWindow;
 import com.codename1.demos.grub.models.FilterModel;
-import com.codename1.rad.controllers.ActionSupport;
-import com.codename1.rad.controllers.FormController;
-import com.codename1.rad.models.Entity;
-import com.codename1.rad.models.EntityList;
-import com.codename1.rad.models.Property;
-import com.codename1.rad.nodes.ActionNode;
-import com.codename1.rad.nodes.Node;
-import com.codename1.rad.ui.AbstractEntityView;
-import com.codename1.ui.*;
+import com.codename1.demos.grub.views.ModelPreviewNew;
+import com.codename1.demos.grub.interfaces.ICuddleProvider;
+import com.codename1.ui.Button;
+import com.codename1.ui.Component;
+import com.codename1.ui.Container;
+import com.codename1.ui.Display;
+import com.codename1.ui.FontImage;
+import com.codename1.ui.Image;
+import com.codename1.ui.Label;
+import com.codename1.ui.TextField;
 import com.codename1.ui.geom.Dimension;
 import com.codename1.ui.layouts.BorderLayout;
 import com.codename1.ui.layouts.BoxLayout;
 import com.codename1.ui.layouts.FlowLayout;
 import com.codename1.ui.layouts.GridLayout;
+import com.codename1.ui.util.Resources;
+import com.codename1.demos.grub.services.ResourceService;
+import com.codename1.demos.grub.services.ResourceServiceImpl;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.codename1.ui.CN.convertToPixels;
 import static com.codename1.ui.util.Resources.getGlobalResources;
 
-public class SearchView extends AbstractEntityView {
+public class SearchView extends Container {
+    private Resources globalResources;
+    private Container rests;
+    private List<ModelPreviewNew> modelPreviews;
+    private String currentSearchText = "";
+    private List<ICuddleProvider> allModels;
+    private TextField searchField;
 
-    Node viewNode;
-    Property restsProp, filterProp;
-    Entity appEntity;
-    Container rests;
-
-    public SearchView(Entity appEntity, Node viewNode) {
-        super(appEntity);
+    public SearchView(Resources globalResources) {
+        this.globalResources = globalResources;
         setLayout(new BoxLayout(BoxLayout.Y_AXIS));
-        this.viewNode = viewNode;
-        this.appEntity = appEntity;
         setScrollableY(true);
         setScrollVisible(false);
         setUIID("SearchView");
-
-        restsProp = appEntity.findProperty(MainWindow.restaurants);
-        filterProp = appEntity.findProperty(MainWindow.filter);
-
+        
+        // Initialiser la liste des modèles
+        allModels = new ArrayList<>();
+        modelPreviews = new ArrayList<>();
+        
+        // Créer la barre de recherche
+        searchField = new TextField() {
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension dim = super.getPreferredSize();
+                dim.setWidth(Display.getInstance().getDisplayWidth() / 4 * 3);
+                return dim;
+            }
+        };
+        searchField.setUIID("HomeSearchField");
+        searchField.setHint("Search ...");
+        searchField.getHintLabel().setUIID("HomeSearchFieldHint");
+        searchField.addActionListener(e -> {
+            String text = searchField.getText();
+            if (!text.equals(currentSearchText)) {
+                currentSearchText = text;
+                filterModels(text);
+            }
+        });
+        
+        // Créer le bouton de retour
         Button backButton = new Button(FontImage.MATERIAL_KEYBOARD_ARROW_LEFT);
         backButton.setUIID("SearchBackButton");
         backButton.addActionListener(evt -> {
             evt.consume();
-            ActionSupport.dispatchEvent(new FormController.FormBackEvent(backButton));
+            // TODO: Implémenter la navigation arrière
         });
-        Label headerLabel = new Label("RESTAURANTS", "SearchHeaderLabel");
+
+        // Créer le label du titre
+        Label headerLabel = new Label("MODELS", "SearchHeaderLabel");
         Container headerCnt = BorderLayout.centerCenter(headerLabel).add(BorderLayout.WEST, backButton);
         headerCnt.setUIID("SearchHeaderCnt");
         add(headerCnt);
 
-        Image filterButtonImage = getGlobalResources().getImage("filter-button.png").scaled(convertToPixels(5), convertToPixels(5));
+        // Créer le bouton de filtre
+        Image filterButtonImage = globalResources.getImage("filter-button.png").scaled(convertToPixels(5), convertToPixels(5));
         Button filterButton = new Button(filterButtonImage, "HomeFilterButton") {
             @Override
             public Dimension getPreferredSize() {
@@ -79,36 +109,11 @@ public class SearchView extends AbstractEntityView {
         };
         filterButton.addActionListener(evt -> {
             evt.consume();
-            ActionNode action = viewNode.getInheritedAction(HomeView.ENTER_FILTER);
-            if (action != null) {
-                action.fireEvent(appEntity, SearchView.this);
-            }
+            // TODO: Implémenter l'action du filtre
         });
 
-        TextField searchField = new TextField() {
-            @Override
-            public Dimension getPreferredSize() {
-                Dimension dim = super.getPreferredSize();
-                dim.setWidth(Display.getInstance().getDisplayWidth() / 4 * 3);
-                return dim;
-            }
-        };
-
-        searchField.setUIID("HomeSearchField");
-        searchField.setHint("Search ...");
-        searchField.getHintLabel().setUIID("HomeSearchFieldHint");
-        searchField.addActionListener(evt -> {
-            evt.consume();
-
-            Entity filter = appEntity.getEntity(filterProp);
-            if (filter instanceof FilterModel) {
-                ((FilterModel) filter).setFreeText(searchField.getText());
-                update();
-                revalidateWithAnimationSafety();
-            }
-        });
-
-        Container filterCnt = new Container(new FlowLayout(Component.CENTER)){
+        // Créer le conteneur de filtre
+        Container filterCnt = new Container(new FlowLayout(Component.CENTER)) {
             @Override
             public Dimension getPreferredSize() {
                 Dimension dim = super.getPreferredSize();
@@ -117,48 +122,58 @@ public class SearchView extends AbstractEntityView {
             }
         };
         filterCnt.addAll(searchField, filterButton);
-
         filterCnt.setUIID("SearchFilterCnt");
         add(filterCnt);
-        Label categoryHeaderLabel = new Label("All Restaurants", "CategoryHeader");
+
+        // Créer le label de catégorie
+        Label categoryHeaderLabel = new Label("All Models", "CategoryHeader");
         add(categoryHeaderLabel);
-        final int restsCount = ((EntityList)appEntity.get(restsProp)).size();
-        final int landscapeRows = restsCount % 2 == 0 ? restsCount / 2 : restsCount / 2 + 1;
-        if(CN.isTablet()){
-            rests = new Container(new GridLayout(landscapeRows, 2));
-        }else{
-            rests = new Container(new GridLayout(restsCount, 1, landscapeRows, 2));
-        }
+
+        // Créer le conteneur pour les modèles
+        rests = new Container(new BoxLayout(BoxLayout.Y_AXIS));
         add(rests);
-        update();
+    public void updateModels(List<ICuddleProvider> models) {
+        // Supprimer les previews existantes
+        if (modelPreviews != null) {
+            for (ModelPreviewNew preview : modelPreviews) {
+                rests.remove(preview);
+            }
+            modelPreviews.clear();
+        }
+
+        // Créer les nouvelles previews
+        modelPreviews = new ArrayList<>();
+        for (ICuddleProvider model : models) {
+            ModelPreviewNew preview = new ModelPreviewNew(model, globalResources);
+            modelPreviews.add(preview);
+            rests.add(preview);
+        }
+
+        // Revalider la vue
+        revalidate();
     }
 
-    @Override
-    public void update() {
-        if(appEntity.get(restsProp) instanceof EntityList){
-            EntityList<Entity> restaurants = (EntityList)appEntity.get(restsProp);
-            for (Entity rest : restaurants) {
-                rests.add(new RestaurantPreview(rest, viewNode));
+    private void filterModels(String searchText) {
+        if (searchText == null || searchText.trim().isEmpty()) {
+            updateModels(allModels);
+            return;
+        }
+
+        List<ICuddleProvider> filtered = new ArrayList<>();
+        for (ICuddleProvider model : allModels) {
+            if (model.getName().toLowerCase().contains(searchText.toLowerCase())) {
+                filtered.add(model);
             }
         }
+        updateModels(filtered);
     }
 
-    @Override
-    public void commit() {
-
+    public void setModels(List<ICuddleProvider> models) {
+        allModels = models;
+        updateModels(models);
     }
 
-    @Override
-    public Node getViewNode() {
-        return null;
-    }
-
-    private Container create(EntityList<Entity> restaurants) {
-        Container popularCnt = new Container(new BoxLayout(BoxLayout.Y_AXIS));
-        popularCnt.setScrollableX(true);
-        for (Entity rest : restaurants) {
-            popularCnt.add(new RestaurantPreview(rest, viewNode));
-        }
-        return popularCnt;
+    public void setSearchField(TextField field) {
+        searchField = field;
     }
 }

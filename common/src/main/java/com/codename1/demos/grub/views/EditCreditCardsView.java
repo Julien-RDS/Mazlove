@@ -14,10 +14,6 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
- * under the License.
- */
-
-
 package com.codename1.demos.grub.views;
 
 import com.codename1.demos.grub.interfaces.Account;
@@ -29,23 +25,31 @@ import com.codename1.rad.nodes.ActionNode;
 import com.codename1.rad.nodes.Node;
 import com.codename1.rad.ui.AbstractEntityView;
 import com.codename1.ui.Button;
+import com.codename1.ui.Component;
 import com.codename1.ui.Container;
 import com.codename1.ui.FontImage;
 import com.codename1.ui.Label;
 import com.codename1.ui.layouts.BorderLayout;
 import com.codename1.ui.layouts.BoxLayout;
+import com.codename1.ui.layouts.FlowLayout;
+import com.codename1.ui.plaf.RoundBorder;
 import com.codename1.ui.plaf.UIManager;
+import com.codename1.ui.util.Resources;
 
 public class EditCreditCardsView extends AbstractEntityView {
 
     Node viewNode;
     Container cardsCnt;
+    private Resources globalResources;
+    private Component component;
 
-    public static final ActionNode.Category ADD_NEW_CARD = new ActionNode.Category();
+    public static final String ADD_NEW_CARD = "addNewCard";
+    public static final String FINISH_CREATING_CARD = "finishCreatingCard";
 
-    public EditCreditCardsView(Entity entity, Node viewNode) {
+    public EditCreditCardsView(Entity entity, Node viewNode, Resources globalResources) {
         super(entity);
         this.viewNode = viewNode;
+        this.globalResources = globalResources;
         setUIID("EditCreditCardsView");
         setLayout(new BoxLayout(BoxLayout.Y_AXIS));
         setScrollVisible(false);
@@ -65,6 +69,7 @@ public class EditCreditCardsView extends AbstractEntityView {
         Label savedCards = new Label("Saved Cards", "SavedCardsHeader");
         add(savedCards);
         cardsCnt = new Container(new BoxLayout(BoxLayout.Y_AXIS));
+        cardsCnt.setUIID("EditCreditCardsCardsContainer");
         add(cardsCnt);
 
         Button addCreditCardIcon = new Button(FontImage.createMaterial(FontImage.MATERIAL_ADD, UIManager.getInstance().getComponentStyle("AddCreditCardIcon")));
@@ -74,7 +79,7 @@ public class EditCreditCardsView extends AbstractEntityView {
         addCreditCardButton.setLeadComponent(addCreditCardIcon);
         addCreditCardIcon.addActionListener(evt -> {
             evt.consume();
-            ActionNode action = viewNode.getInheritedAction(EditCreditCardsView.ADD_NEW_CARD);
+            ActionNode action = viewNode.getInheritedAction(ADD_NEW_CARD);
             if (action != null) {
                 action.fireEvent(entity, EditCreditCardsView.this);
             }
@@ -92,6 +97,7 @@ public class EditCreditCardsView extends AbstractEntityView {
                 cardsCnt.add(new CreditCardView(currCard, null));
             }
         }
+        cardsCnt.revalidate();
     }
 
     @Override
@@ -102,5 +108,21 @@ public class EditCreditCardsView extends AbstractEntityView {
     @Override
     public Node getViewNode() {
         return null;
+    }
+
+    public Button getAddCardButton() {
+        return (Button) findByName("AddCreditCardIcon");
+    }
+
+    public Button getBackButton() {
+        return (Button) findByName("EditCreditCardsBackButton");
+    }
+
+    public void setComponent(Component component) {
+        this.component = component;
+    }
+
+    public Component getComponent() {
+        return component;
     }
 }

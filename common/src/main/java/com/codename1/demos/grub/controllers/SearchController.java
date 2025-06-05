@@ -20,19 +20,15 @@
 package com.codename1.demos.grub.controllers;
 
 import com.codename1.demos.grub.views.SearchView;
-import com.codename1.rad.controllers.Controller;
-import com.codename1.rad.controllers.FormController;
-import com.codename1.rad.models.Entity;
-import com.codename1.rad.nodes.Node;
 import com.codename1.ui.Form;
 import com.codename1.ui.layouts.BorderLayout;
+import com.codename1.ui.util.Resources;
 
-public class SearchController extends FormController {
-    public SearchController(Controller parent, Entity appEntity, Node viewNode) {
-        super(parent);
+public class SearchController {
+    public SearchController(Form parentForm, Resources globalResources) {
         Form searchForm = new Form(new BorderLayout());
         searchForm.getToolbar().hideToolbar();
-        searchForm.add(BorderLayout.CENTER, new SearchView(appEntity, viewNode));
-        setView(searchForm);
+        searchForm.add(BorderLayout.CENTER, new SearchView(globalResources));
+        searchForm.show();
     }
 }

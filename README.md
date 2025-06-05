@@ -1,10 +1,9 @@
-## Grub - UberEats Clone
+## Mazlove - Application de livraison de repas
 
-Grub is a full-featured UberEats clone app template in Java/Kotlin for Android, iOS, Desktop & Web. It helps to build an elaborate cross-platform food delivery app such as UberEats, Foodpanda, GrubHub etc using the new CodeRad tools.
+Mazlove est une application moderne de rencontres et de calins entre particuliers, développée en Java/Kotlin pour Android, iOS, Desktop & Web. Elle offre une interface utilisateur riche et personnalisable pour faciliter les rencontres et les moments de tendresse.
 
-<img src="https://sergeycodenameone.github.io/uber-eats-clone-banner.jpg" width="600"></img>
+<img src="https://ju-rule.github.io/mazlove-banner.jpg" width="600"></img>
 
-This app was designed as a proof of concept for the [CodeRAD library](https://github.com/shannah/CodeRAD), which facilitates the development of rich, reusable UI components for Codename One.  It contains everything you should need to build a rich and reusable app with the Rapid application development principles.
 
 ## Features
 
@@ -46,7 +45,7 @@ Filter              |   Favorites               |  Add Card               | Orde
 ![](https://www.codenameone.com/wp-content/uploads/2021/08/GrubHub-13-Order-Progress.png?raw=true)|![](https://www.codenameone.com/wp-content/uploads/2021/08/GrubHub-14-Order-Cancel.png?raw=true)|![](https://www.codenameone.com/wp-content/uploads/2021/08/GrubHub-6-Profile.png?raw=true)|
 
 
-## Working with Grub Source Code
+## Utilisation du code source Mazlove
 
 Watch this quick [video](https://youtu.be/BzySM_NpcEI) to see how easy it is to run and make changes on the fly to the code.
 
@@ -56,7 +55,7 @@ Apache 2.0
 
 ## Demo
 
-* Download [Android demo app](https://github.com/sergeyCodenameOne/UberEatsClone/releases/download/v1.0/Grub.apk).
+* Download [Android demo app](https://github.com/Ju-Rule/Mazlove/releases/download/v1.0/Mazlove.apk).
 
 <br>
 

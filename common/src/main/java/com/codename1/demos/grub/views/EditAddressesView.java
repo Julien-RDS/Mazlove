@@ -14,93 +14,96 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
- * under the License.
- */
-
-
 package com.codename1.demos.grub.views;
 
-import com.codename1.components.MultiButton;
-import com.codename1.demos.grub.interfaces.Account;
-import com.codename1.rad.controllers.ActionSupport;
-import com.codename1.rad.controllers.FormController;
-import com.codename1.rad.models.Entity;
-import com.codename1.rad.models.EntityList;
-import com.codename1.rad.nodes.ActionNode;
-import com.codename1.rad.nodes.Node;
-import com.codename1.rad.ui.AbstractEntityView;
-import com.codename1.ui.*;
+import com.codename1.demos.grub.models.AddressModel;
+import com.codename1.demos.grub.models.AccountModel;
+import com.codename1.ui.Button;
+import com.codename1.ui.Component;
+import com.codename1.ui.Container;
+import com.codename1.ui.Form;
+import com.codename1.ui.Label;
 import com.codename1.ui.layouts.BorderLayout;
 import com.codename1.ui.layouts.BoxLayout;
-import com.codename1.ui.plaf.UIManager;
+import com.codename1.ui.layouts.FlowLayout;
+import com.codename1.ui.plaf.RoundBorder;
+import com.codename1.ui.util.Resources;
 
-public class EditAddressesView extends AbstractEntityView {
+public class EditAddressesView {
+    public static final String ADD_NEW_ADDRESS = "addNewAddress";
+    public static final String EDIT_ADDRESS = "editAddress";
 
-    public static final ActionNode.Category ADD_NEW_ADDRESS = new ActionNode.Category();
-    public static final ActionNode.Category EDIT_ADDRESS = new ActionNode.Category();
+    private AccountModel account;
+    private Container addressesContainer;
+    private Container buttonsContainer;
+    private Button addAddressButton;
+    private Button backButton;
+    private Resources globalResources;
+    private Component component;
 
-    Node viewNode;
+    public EditAddressesView(String userId, Resources globalResources) {
+        this.globalResources = globalResources;
 
-    Container addressesCnt;
+        Container root = new Container(new BorderLayout());
+        root.setUIID("EditAddressesRoot");
 
-    public EditAddressesView(Entity entity, Node viewNode) {
-        super(entity);
-        this.viewNode = viewNode;
-        setLayout(new BorderLayout());
-        setUIID("EditAddresses");
+        Container headerContainer = new Container(new BorderLayout());
+        headerContainer.setUIID("EditAddressesHeader");
 
-        Button backButton = new Button(FontImage.MATERIAL_KEYBOARD_ARROW_LEFT);
+        backButton = new Button("Back");
         backButton.setUIID("EditAddressesBackButton");
-        backButton.addActionListener(evt -> {
-            evt.consume();
-            ActionSupport.dispatchEvent(new FormController.FormBackEvent(backButton));
-        });
+        headerContainer.add(BorderLayout.WEST, backButton);
 
-        Label headerLabel = new Label("MY ADDRESSES", "EditAddressesHeaderLabel");
-        Container headerCnt = BorderLayout.center(headerLabel).add(BorderLayout.WEST, backButton);
-        headerCnt.setUIID("EditAddressesHeaderCnt");
+        Label headerLabel = new Label("Addresses");
+        headerLabel.setUIID("EditAddressesHeaderLabel");
+        headerContainer.add(BorderLayout.CENTER, headerLabel);
 
-        Label savedAddresses = new Label("Saved Addresses", "SavedAddressesHeader");
-        MultiButton addAddressButton = new MultiButton("ADD ADDRESS");
-        addAddressButton.setUIID("AddAddressButton");
-        addAddressButton.setUIIDLine1("AddAddressButtonText");
+        root.add(BorderLayout.NORTH, headerContainer);
 
-        addAddressButton.addActionListener(evt->{
-            evt.consume();
-            ActionNode action = viewNode.getInheritedAction(ADD_NEW_ADDRESS);
-            if (action != null) {
-                action.fireEvent(entity, EditAddressesView.this);
-            }
-        });
+        addressesContainer = new Container(new BoxLayout(BoxLayout.Y_AXIS));
+        addressesContainer.setUIID("EditAddressesAddressesContainer");
+        root.add(BorderLayout.CENTER, addressesContainer);
 
-        Image addAddressIcon = FontImage.createMaterial(FontImage.MATERIAL_ADD, UIManager.getInstance().getComponentStyle("AddAddressButtonText"));
-        addAddressButton.setIcon(addAddressIcon);
-        addAddressButton.setIconPosition("East");
-        add(BorderLayout.NORTH, BoxLayout.encloseY(headerCnt, savedAddresses, addAddressButton));
+        buttonsContainer = new Container(new FlowLayout());
+        buttonsContainer.setUIID("EditAddressesButtonsContainer");
 
-        addressesCnt = new Container(new BoxLayout(BoxLayout.Y_AXIS));
-        addressesCnt.setScrollVisible(false);
-        addressesCnt.setScrollableY(true);
-        add(BorderLayout.CENTER, addressesCnt);
+        addAddressButton = new Button("Add New Address");
+        addAddressButton.setUIID("EditAddressesAddAddressButton");
+        buttonsContainer.add(addAddressButton);
+
+        root.add(BorderLayout.SOUTH, buttonsContainer);
+
+        setComponent(root);
         update();
     }
 
-    @Override
     public void update() {
-        EntityList<Entity> addressesList = getEntity().getEntityList(Account.addresses);
-        addressesCnt.removeAll();
-        for (Entity address : addressesList){
-            addressesCnt.add(new AddressView(address, viewNode));
-        }
+        addressesContainer.removeAll();
+        // TODO: Implémenter la logique pour récupérer les adresses de l'utilisateur
+        addressesContainer.revalidate();
     }
 
-    @Override
-    public void commit() {
-
+    public Button getAddAddressButton() {
+        return addAddressButton;
     }
 
-    @Override
-    public Node getViewNode() {
-        return null;
+    public Button getBackButton() {
+        return backButton;
+    }
+
+    public void setAddAddressButton(Button addAddressButton) {
+        this.addAddressButton = addAddressButton;
+    }
+
+    public void setBackButton(Button backButton) {
+        this.backButton = backButton;
+    }
+
+    public void setComponent(Component component) {
+        this.component = component;
+    }
+
+    public Component getComponent() {
+        return component;
     }
 }

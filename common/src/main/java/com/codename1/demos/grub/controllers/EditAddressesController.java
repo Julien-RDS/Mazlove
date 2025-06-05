@@ -25,43 +25,35 @@ import com.codename1.demos.grub.models.AddressModel;
 import com.codename1.demos.grub.views.EditAddressView;
 import com.codename1.demos.grub.views.EditAddressesView;
 import com.codename1.demos.grub.views.NewAddressView;
-import com.codename1.rad.controllers.Controller;
-import com.codename1.rad.controllers.FormController;
-import com.codename1.rad.models.Entity;
-import com.codename1.rad.nodes.ActionNode;
-import com.codename1.rad.nodes.Node;
-import com.codename1.rad.nodes.ViewNode;
-import com.codename1.rad.ui.UI;
 import com.codename1.ui.Form;
 import com.codename1.ui.layouts.BorderLayout;
+import com.codename1.ui.util.Resources;
 
-public class EditAddressesController extends FormController {
+public class EditAddressesController {
 
     public static final ActionNode addAddress = UI.action();
     public static final ActionNode editAddress = UI.action();
     public static final ActionNode finishedEditing = UI.action();
     public static final ActionNode finishedNewAddress = UI.action();
 
+    private String userId;
+    private Resources globalResources;
 
+    public EditAddressesController(Form parentForm, String userId, Resources globalResources) {
+        this.userId = userId;
+        this.globalResources = globalResources;
 
-    public EditAddressesController(Controller parent, AccountModel account) {
-        super(parent);
-        Node viewNode = new ViewNode(
-                UI.actions(EditAddressesView.ADD_NEW_ADDRESS, addAddress),
-                UI.actions(NewAddressView.FINISHED_NEW_ADDRESS, finishedNewAddress),
-                UI.actions(EditAddressesView.EDIT_ADDRESS, editAddress),
-                UI.actions(EditAddressView.FINISHED_EDIT_ADDRESS, finishedEditing)
-        );
+        Form addressesForm = new Form(new BorderLayout());
+        addressesForm.getToolbar().hideToolbar();
 
-        Form editAddressesForm = new Form(new BorderLayout());
-        editAddressesForm.getToolbar().hideToolbar();
-        EditAddressesView view = new EditAddressesView(account, viewNode);
-        editAddressesForm.add(BorderLayout.CENTER, view);
-        setView(editAddressesForm);
+        EditAddressesView editAddressesView = new EditAddressesView(userId, globalResources);
+        addressesForm.add(BorderLayout.CENTER, editAddressesView);
+
+        addressesForm.show();
 
         addActionListener(addAddress, evt -> {
             evt.consume();
-            new NewAddressController(this, viewNode).getView().show();
+            new NewAddressController(this).getView().show();
         });
 
         addActionListener(finishedNewAddress, evt -> {

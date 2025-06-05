@@ -20,21 +20,28 @@
 package com.codename1.demos.grub.controllers;
 
 import com.codename1.demos.grub.views.EditProfileView;
-import com.codename1.rad.controllers.Controller;
-import com.codename1.rad.controllers.FormController;
-import com.codename1.rad.models.Entity;
-import com.codename1.rad.nodes.Node;
 import com.codename1.ui.Form;
 import com.codename1.ui.layouts.BorderLayout;
+import com.codename1.ui.util.Resources;
 
-public class EditProfileController extends FormController {
+public class EditProfileController {
+    private String userId;
+    private Resources globalResources;
 
-    public EditProfileController(Controller parent, Entity account, Node viewNode) {
-        super(parent);
+    public EditProfileController(String userId, Resources globalResources) {
+        this.userId = userId;
+        this.globalResources = globalResources;
+
         Form editProfileForm = new Form(new BorderLayout());
         editProfileForm.getToolbar().hideToolbar();
-        editProfileForm.setFormBottomPaddingEditingMode(true);
-        editProfileForm.add(BorderLayout.CENTER, new EditProfileView(account, viewNode));
-        setView(editProfileForm);
+
+        EditProfileView editProfileView = new EditProfileView(userId, globalResources);
+        editProfileForm.add(BorderLayout.CENTER, editProfileView);
+
+        editProfileForm.show();
+    }
+
+    public void show() {
+        // La méthode show() est déjà appelée dans le constructeur
     }
 }
