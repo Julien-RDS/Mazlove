@@ -1,14 +1,3 @@
-package com.codename1.demos.grub.services;
-
-import com.codename1.ui.Form;
-import com.codename1.ui.Container;
-
-public interface NavigationService {
-    void initialize(Form homeForm);
-    void showForm(Form form);
-    void showBack();
-    void showContainer(Container container);
-    void showContainerBack(Container container);
-    void showHome();
-    Form getCurrentForm();
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:f58e9257e5b1d5576d492c564c9b9286c4127ba9eb5099cd1ad1b715c9965218
+size 388
