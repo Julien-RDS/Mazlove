@@ -4,6 +4,15 @@
 *.iws
 *.ipr
 
+# Template files
+*.template
+*.template.*
+*.template.*.java
+*.template.*.js
+*.template.*.html
+*.template.*.css
+*.template.*.md
+
 # Build files
 *.class
 *.jar
