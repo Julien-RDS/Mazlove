@@ -1,6 +1,6 @@
 ## Mazlove - Application de livraison de repas
 
-Mazlove est une application moderne de rencontres et de calins entre particuliers, développée en Java/Kotlin pour Android, iOS, Desktop & Web. Elle offre une interface utilisateur riche et personnalisable pour faciliter les rencontres et les moments de tendresse.
+j'ai laisser tout ce qui est relatif a l'user app qui a servi de template pour faciliter la compréhension... Mazlove est une application moderne de rencontres et de calins entre particuliers, développée en Java/Kotlin pour Android, iOS, Desktop & Web. Elle offre une interface utilisateur riche et personnalisable pour faciliter les rencontres et les moments de tendresse.
 
 <img src="https://ju-rule.github.io/mazlove-banner.jpg" width="600"></img>
 
