@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* 17 px : Atkinson Hyperlegible est un peu petite à 16 px. */
+  body {
+    @apply bg-brume font-sans text-nuit antialiased;
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display text-nuit;
+    font-optical-sizing: auto;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+  }
+
+  /* Focus clavier toujours visible, contrasté sur le fond clair comme sur les boutons foncés. */
+  :focus-visible {
+    outline: 2px solid theme('colors.nuit.DEFAULT');
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: theme('colors.abricot.pale');
+  }
+}
+
+/* Respecte le réglage système « réduire les animations ». */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

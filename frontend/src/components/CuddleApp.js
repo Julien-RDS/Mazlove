@@ -1,335 +1,209 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Search, Heart, Star, Filter, ArrowRight } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { CalendarDays, LogOut, UserRound } from 'lucide-react';
+import { Api, SESSION_EXPIRED_EVENT, tokenStore } from '../api';
+import { loginPath, navigate, useRoute } from '../lib/router';
+import AuthScreen from './AuthScreen';
+import DiscoverScreen from './DiscoverScreen';
+import ProviderOnboarding from './ProviderOnboarding';
+import ProviderScreen from './ProviderScreen';
+import { SessionDetailScreen, SessionsScreen } from './SessionsScreen';
+import { Button, Spinner, cx } from './ui';
 
-const CuddleApp = () => {
-  const [currentScreen, setCurrentScreen] = useState('home');
-  const [selectedHeight, setSelectedHeight] = useState('1m72');
-  const [customizations, setCustomizations] = useState({
-    face: 'selected',
-    chest: 'medium',
-    hips: 'medium',
-    thighs: 'medium'
-  });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+/** Point de recherche d'origine (Paris centre), utilisé tel quel pour la sélection des praticiens. */
+const DEFAULT_POSITION = { lat: 48.87, lng: 2.35, label: 'Paris centre' };
 
-  const profiles = [
-    {
-      name: 'Emily',
-      age: 19,
-      rating: 4.9,
-      reviews: 324,
-      price: 139,
-      tags: ['Naturelle', '1m72', 'Sportive'],
-      image: '/api/placeholder/200/300'
-    },
-    {
-      name: 'Sophia',
-      age: 22,
-      rating: 4.1,
-      reviews: 624,
-      price: 159,
-      tags: ['Naturelle', '1m72'],
-      image: '/api/placeholder/200/300'
+/** Écrans qui exigent d'être connecté. */
+const PROTECTED_ROUTES = ['sessions', 'session', 'onboarding'];
+
+/**
+ * Coquille de l'application : session utilisateur, routage, en-tête et notifications.
+ * Chaque écran reçoit seulement ce dont il a besoin (utilisateur, position, notify).
+ */
+export default function CuddleApp() {
+  const route = useRoute();
+  const [user, setUser] = useState(null);
+  // Sans jeton stocké, on sait tout de suite que personne n'est connecté.
+  const [authReady, setAuthReady] = useState(() => !tokenStore.get());
+  // Position fixe tant que les critères de sélection n'ont pas été revus (cf. DiscoverScreen).
+  const position = DEFAULT_POSITION;
+  const [toasts, setToasts] = useState([]);
+  const firstRender = useRef(true);
+
+  const notify = useCallback((message) => {
+    const id = Date.now() + Math.random();
+    setToasts((current) => [...current, { id, message }]);
+    setTimeout(() => setToasts((current) => current.filter((t) => t.id !== id)), 4000);
+  }, []);
+
+  /** Recharge le profil (après connexion, création de fiche…) et le renvoie. */
+  const refreshUser = useCallback(async () => {
+    if (!tokenStore.get()) {
+      setUser(null);
+      setAuthReady(true);
+      return null;
     }
-  ];
+    try {
+      const me = await Api.me();
+      setUser(me);
+      return me;
+    } catch {
+      setUser(null);
+      return null;
+    } finally {
+      setAuthReady(true);
+    }
+  }, []);
 
-  const customProfile = {
-    name: 'Lila',
-    match: '1m71',
-    tags: ['Brune'],
-    image: '/api/placeholder/300/400'
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
+
+  // Jeton expiré détecté par le client HTTP : on repasse en visiteur sans recharger la page.
+  useEffect(() => {
+    const onExpired = () => {
+      setUser(null);
+      notify('Votre session a expiré. Reconnectez-vous pour continuer.');
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+  }, [notify]);
+
+  // À chaque changement d'écran : retour en haut et focus sur le titre, pour que les lecteurs
+  // d'écran annoncent la nouvelle page (une SPA ne le fait pas d'elle-même).
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => document.getElementById('page-title')?.focus());
+  }, [route.path]);
+
+  const needsAuth = PROTECTED_ROUTES.includes(route.name);
+  useEffect(() => {
+    if (needsAuth && authReady && !user) navigate(loginPath(route.path), { replace: true });
+  }, [needsAuth, authReady, user, route.path]);
+
+  const logout = () => {
+    tokenStore.clear();
+    setUser(null);
+    notify('Vous êtes déconnecté.');
+    navigate('/');
   };
-
-  const handleSearch = () => {
-    setIsSearching(true);
-    setTimeout(() => {
-      setCurrentScreen('results');
-      setIsSearching(false);
-    }, 2000);
-  };
-
-  const ScreenOne = () => (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-white">
-        <button className="flex items-center text-gray-600">
-          <span className="text-sm">Traits physiques</span>
-          <ChevronLeft className="w-4 h-4 ml-1 rotate-180" />
-        </button>
-      </div>
-
-      {/* Body silhouette */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8">
-        <div className="relative">
-          {/* Silhouette placeholder */}
-          <div className="w-48 h-80 bg-gray-200 rounded-full opacity-60 mb-8"></div>
-        </div>
-
-        <div className="text-center">
-          <p className="text-gray-500 text-sm mb-2">Définissez la taille</p>
-          <p className="text-3xl font-bold text-gray-800 mb-8">{selectedHeight}</p>
-        </div>
-
-        <button 
-          onClick={() => setCurrentScreen('customize')}
-          className="bg-pink-500 text-white px-8 py-3 rounded-full font-medium"
-        >
-          Continuer
-        </button>
-      </div>
-    </div>
-  );
-
-  const ScreenTwo = () => (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-white">
-        <button onClick={() => setCurrentScreen('home')} className="p-2">
-          <ChevronLeft className="w-5 h-5 text-gray-600" />
-        </button>
-        <button className="flex items-center text-gray-600">
-          <span className="text-sm">Traits physiques</span>
-          <ChevronLeft className="w-4 h-4 ml-1 rotate-180" />
-        </button>
-      </div>
-
-      {/* Body with customization points */}
-      <div className="flex-1 flex items-center justify-center px-8">
-        <div className="relative">
-          {/* Silhouette */}
-          <div className="w-48 h-80 bg-gray-200 rounded-full opacity-60 relative">
-            {/* Customization points */}
-            <div className="absolute top-12 left-8">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-black rounded-full mr-2"></div>
-                <span className="bg-black text-white px-2 py-1 rounded text-xs">Face</span>
-              </div>
-            </div>
-            
-            <div className="absolute top-32 left-8">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-black rounded-full mr-2"></div>
-                <span className="bg-black text-white px-2 py-1 rounded text-xs">Poitrine</span>
-              </div>
-            </div>
-            
-            <div className="absolute top-48 left-8">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-black rounded-full mr-2"></div>
-                <span className="bg-black text-white px-2 py-1 rounded text-xs">Hanches</span>
-              </div>
-            </div>
-            
-            <div className="absolute top-64 left-8">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-black rounded-full mr-2"></div>
-                <span className="bg-black text-white px-2 py-1 rounded text-xs">Cuisse</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-4">
-        <button 
-          onClick={() => setCurrentScreen('search')}
-          className="w-full bg-pink-500 text-white py-3 rounded-full font-medium"
-        >
-          Rechercher
-        </button>
-      </div>
-    </div>
-  );
-
-  const ScreenThree = () => (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white p-4">
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setCurrentScreen('customize')} className="p-2">
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <button className="flex items-center text-gray-600">
-            <span className="text-sm">Traits physiques</span>
-            <ChevronLeft className="w-4 h-4 ml-1 rotate-180" />
-          </button>
-        </div>
-
-        {/* Search bar */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Rechercher votre désir"
-            className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-full text-sm"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-4 mb-4">
-          <button className="flex items-center gap-1 text-sm text-gray-600">
-            <Heart className="w-4 h-4" />
-            Calins
-          </button>
-          <button className="text-sm text-gray-600">Les mieux notés</button>
-          <button className="flex items-center gap-1 text-sm text-gray-600">
-            Durée
-            <ChevronLeft className="w-3 h-3 rotate-180" />
-          </button>
-          <button className="text-sm text-gray-600">Tr...</button>
-        </div>
-
-        <p className="text-xs text-gray-400 mb-4">
-          Découvrez comment les profils sont sélectionnés. En savoir plus
-        </p>
-
-        {/* Sponsored content */}
-        <div className="bg-gray-100 p-3 rounded-lg mb-4 flex items-center justify-between">
-          <div>
-            <p className="font-medium text-sm">À découvrir sur Mazlove</p>
-            <p className="text-xs text-gray-500">Sponsorisé</p>
-          </div>
-          <ArrowRight className="w-4 h-4 text-gray-400" />
-        </div>
-      </div>
-
-      {/* Profiles grid */}
-      <div className="p-4 grid grid-cols-2 gap-4">
-        {profiles.map((profile, index) => (
-          <div key={index} className="bg-black rounded-lg overflow-hidden relative">
-            <div className="h-48 bg-gray-800 relative">
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-              <div className="absolute bottom-3 left-3 text-white">
-                <p className="font-medium">{profile.name} {profile.age}</p>
-                <div className="flex items-center gap-1 text-xs">
-                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                  <span>{profile.rating}</span>
-                  <span className="text-gray-300">({profile.reviews})</span>
-                </div>
-              </div>
-              <div className="absolute top-3 right-3 bg-black/50 text-white px-2 py-1 rounded text-xs">
-                {profile.price}€
-              </div>
-            </div>
-            <div className="p-2">
-              <div className="flex flex-wrap gap-1">
-                {profile.tags.map((tag, i) => (
-                  <span key={i} className="text-xs bg-gray-100 px-2 py-1 rounded">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="p-4">
-        <button 
-          onClick={handleSearch}
-          className="w-full bg-pink-500 text-white py-3 rounded-full font-medium flex items-center justify-center gap-2"
-        >
-          {isSearching ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-              Recherche en cours...
-            </>
-          ) : (
-            'Trouver mon calin idéal'
-          )}
-        </button>
-      </div>
-    </div>
-  );
-
-  const ScreenFour = () => (
-    <div className="min-h-screen bg-gradient-to-br from-pink-400 via-purple-500 to-pink-600">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 text-white">
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            <div className="w-1 h-1 bg-white rounded-full"></div>
-            <div className="w-1 h-1 bg-white rounded-full"></div>
-            <div className="w-1 h-1 bg-white rounded-full"></div>
-          </div>
-          <span className="text-sm">9:41</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="flex gap-1">
-            <div className="w-1 h-3 bg-white rounded-full"></div>
-            <div className="w-1 h-3 bg-white rounded-full"></div>
-            <div className="w-1 h-3 bg-white rounded-full"></div>
-            <div className="w-1 h-3 bg-white rounded-full"></div>
-          </div>
-          <div className="ml-2 text-xs">📶 🔋</div>
-        </div>
-      </div>
-
-      <div className="text-center text-white mb-8 px-4">
-        <p className="text-lg font-light">1 résultat</p>
-      </div>
-
-      {/* Main profile */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8">
-        <div className="relative mb-6">
-          <div className="w-64 h-80 bg-white/10 backdrop-blur-sm rounded-3xl overflow-hidden">
-            <div className="h-full bg-gradient-to-b from-transparent to-black/30 relative">
-              {/* Profile image placeholder */}
-              <div className="h-full w-full bg-gray-300 opacity-20"></div>
-            </div>
-          </div>
-
-          {/* Match indicators */}
-          <div className="absolute top-4 left-4 flex items-center gap-2 text-white">
-            <div className="w-2 h-2 bg-white rounded-full"></div>
-            <span className="text-xs bg-black/30 px-2 py-1 rounded-full">1m71</span>
-          </div>
-          
-          <div className="absolute top-4 right-4 flex items-center gap-2 text-white">
-            <div className="w-2 h-2 bg-white rounded-full"></div>
-            <span className="text-xs bg-black/30 px-2 py-1 rounded-full">Brune</span>
-          </div>
-
-          <div className="absolute bottom-6 left-6 text-white">
-            <h1 className="text-4xl font-light mb-2">{customProfile.name}</h1>
-          </div>
-        </div>
-
-        <button className="bg-white text-purple-600 px-8 py-3 rounded-full font-medium shadow-lg">
-          Voir le profil
-        </button>
-      </div>
-
-      {/* Bottom navigation */}
-      <div className="p-4">
-        <button 
-          onClick={() => setCurrentScreen('home')}
-          className="w-full bg-white/20 backdrop-blur-sm text-white py-3 rounded-full font-medium"
-        >
-          Nouvelle recherche
-        </button>
-      </div>
-    </div>
-  );
 
   const renderScreen = () => {
-    switch (currentScreen) {
-      case 'home': return <ScreenOne />;
-      case 'customize': return <ScreenTwo />;
-      case 'search': return <ScreenThree />;
-      case 'results': return <ScreenFour />;
-      default: return <ScreenOne />;
+    if (needsAuth && (!authReady || !user)) return <Spinner />;
+    switch (route.name) {
+      case 'discover':
+        return <DiscoverScreen query={route.query} position={position} />;
+      case 'provider':
+        return <ProviderScreen key={route.params.id} id={route.params.id} user={user} position={position} notify={notify} />;
+      case 'auth':
+        return <AuthScreen query={route.query} onAuthenticated={refreshUser} />;
+      case 'sessions':
+        return <SessionsScreen user={user} />;
+      case 'session':
+        return <SessionDetailScreen key={route.params.id} id={route.params.id} notify={notify} />;
+      case 'onboarding':
+        return (
+          <ProviderOnboarding
+            user={user}
+            position={position}
+            onCreated={async (provider) => {
+              await refreshUser();
+              notify('Fiche publiée. Les clients peuvent maintenant réserver.');
+              navigate(`/praticien/${provider.id}`, { replace: true });
+            }}
+          />
+        );
+      default:
+        return (
+          <div className="space-y-4 pt-2">
+            <h1 id="page-title" tabIndex={-1} className="text-4xl font-semibold outline-none">
+              Cette page n'existe pas
+            </h1>
+            <Button onClick={() => navigate('/')}>Revenir à l'accueil</Button>
+          </div>
+        );
     }
   };
 
+  const navLink = (active) =>
+    cx(
+      'inline-flex h-10 items-center gap-2 rounded-full px-3 font-bold transition-colors',
+      active ? 'bg-white text-nuit' : 'text-nuit-doux hover:bg-white hover:text-nuit'
+    );
+
   return (
-    <div className="max-w-sm mx-auto bg-white shadow-xl">
-      {renderScreen()}
+    <div className="flex min-h-screen flex-col">
+      {/* Lien d'évitement : un bouton, car une ancre "#contenu" serait prise pour une route. */}
+      <button
+        type="button"
+        onClick={() => document.getElementById('contenu')?.focus()}
+        className="sr-only z-50 rounded-full bg-nuit px-4 py-2 font-bold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-3"
+      >
+        Aller au contenu
+      </button>
+
+      <header className="sticky top-0 z-30 border-b border-lilas/60 bg-brume/90 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
+          <a href="#/" className="font-display text-[1.7rem] font-semibold tracking-tight text-nuit">
+            mazlove
+          </a>
+          <nav aria-label="Navigation principale" className="flex items-center gap-1">
+            {user ? (
+              <>
+                {user.role === 'PROVIDER' && (
+                  <a
+                    href={user.providerId ? `#/praticien/${user.providerId}` : '#/profil-praticien'}
+                    className={navLink(route.name === 'onboarding' || (route.name === 'provider' && Number(route.params.id) === user.providerId))}
+                  >
+                    <UserRound className="h-5 w-5" aria-hidden="true" />
+                    <span className="sr-only sm:not-sr-only">{user.providerId ? 'Ma fiche' : 'Publier ma fiche'}</span>
+                  </a>
+                )}
+                <a
+                  href="#/seances"
+                  className={navLink(route.name === 'sessions' || route.name === 'session')}
+                  aria-current={route.name === 'sessions' ? 'page' : undefined}
+                >
+                  <CalendarDays className="h-5 w-5" aria-hidden="true" />
+                  <span className="sr-only sm:not-sr-only">Mes séances</span>
+                </a>
+                <button type="button" onClick={logout} className={navLink(false)}>
+                  <LogOut className="h-5 w-5" aria-hidden="true" />
+                  <span className="sr-only sm:not-sr-only">Se déconnecter</span>
+                </button>
+              </>
+            ) : (
+              route.name !== 'auth' && (
+                <a href={`#${loginPath(route.path)}`} className="inline-flex h-10 items-center rounded-full bg-nuit px-5 font-bold text-white hover:bg-nuit-800">
+                  Se connecter
+                </a>
+              )
+            )}
+          </nav>
+        </div>
+      </header>
+
+      <main id="contenu" tabIndex={-1} className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-6 outline-none sm:px-6">
+        {renderScreen()}
+      </main>
+
+      <footer className="border-t border-lilas/60">
+        <p className="mx-auto max-w-5xl px-4 py-6 text-[0.95rem] text-nuit-doux sm:px-6">
+          Mazlove propose uniquement des séances non sexuelles. Vous pouvez arrêter une séance à tout moment, sans
+          justification.
+        </p>
+      </footer>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4" role="status" aria-live="polite">
+        {toasts.map((toast) => (
+          <p key={toast.id} className="pointer-events-auto rounded-full bg-nuit px-5 py-2.5 font-bold text-white shadow-lg">
+            {toast.message}
+          </p>
+        ))}
+      </div>
     </div>
   );
-};
-
-export default CuddleApp;
+}

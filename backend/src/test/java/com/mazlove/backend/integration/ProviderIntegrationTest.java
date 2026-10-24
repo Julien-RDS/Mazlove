@@ -1,69 +1,58 @@
 package com.mazlove.backend.integration;
 
-import com.mazlove.backend.dto.ProviderCreateDTO;
-import com.mazlove.backend.dto.ProviderDTO;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
-import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
-import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(webEnvironment = RANDOM_PORT)
+/**
+ * Tests de bout en bout sur l'application complète (sécurité, contrôleurs, base, cache).
+ *
+ * Désactivés par défaut car ils exigent PostgreSQL et Redis démarrés : lancer avec
+ *   MAZLOVE_IT=true mvn test
+ * Sans cette variable, "mvn test" reste rapide et passe sur n'importe quelle machine.
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+@EnabledIfEnvironmentVariable(named = "MAZLOVE_IT", matches = "true")
 class ProviderIntegrationTest {
 
     @Autowired
-    private WebTestClient webTestClient;
+    private MockMvc mockMvc;
 
     @Test
-    void shouldCreateProvider() {
-        ProviderCreateDTO dto = new ProviderCreateDTO(
-                "Test Provider",
-                "Test description",
-                48.8566, 2.3522,
-                "https://example.com/image.jpg",
-                "+33123456789"
-        );
-
-        webTestClient.post()
-                .uri("/api/providers")
-                .contentType(APPLICATION_JSON)
-                .bodyValue(dto)
-                .exchange()
-                .expectStatus().isCreated()
-                .expectBody(ProviderDTO.class)
-                .value(provider -> {
-                    assertNotNull(provider.getId());
-                    assertEquals(dto.name(), provider.getName());
-                    assertEquals(dto.description(), provider.getDescription());
-                });
+    void listingNearbyProvidersIsPublic() throws Exception {
+        mockMvc.perform(get("/api/providers").param("lat", "48.87").param("lng", "2.35"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
     }
 
     @Test
-    void shouldGetProvidersNearby() {
-        webTestClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/api/providers")
-                        .queryParam("lat", "48.8566")
-                        .queryParam("lng", "2.3522")
-                        .build())
-                .exchange()
-                .expectStatus().isOk()
-                .expectBodyList(ProviderDTO.class)
-                .hasSizeGreaterThan(0);
+    void creatingAProviderRequiresAnAccount() throws Exception {
+        mockMvc.perform(post("/api/providers").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").exists());
     }
 
     @Test
-    void shouldGetProviderById() {
-        webTestClient.get()
-                .uri("/api/providers/{id}", 1)
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody(ProviderDTO.class)
-                .value(provider -> {
-                    assertNotNull(provider.getId());
-                    assertNotNull(provider.getName());
-                });
+    void unknownProviderReturns404WithAReadableMessage() throws Exception {
+        mockMvc.perform(get("/api/providers/{id}", Long.MAX_VALUE))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").exists());
+    }
+
+    @Test
+    void missingCoordinatesReturn400() throws Exception {
+        mockMvc.perform(get("/api/providers"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists());
     }
 }

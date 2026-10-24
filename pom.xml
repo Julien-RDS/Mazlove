@@ -1,89 +1,23 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  POM agrégateur : permet d'ouvrir le dépôt entier dans un IDE (IntelliJ, VS Code, Eclipse).
+  L'ancien fichier listait des modules Codename One (common, android, ios…) absents du dépôt,
+  ce qui faisait échouer toute commande Maven lancée à la racine.
+  Le backend reste autonome : "cd backend && mvn spring-boot:run" fonctionne sans ce fichier.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.codename1.demos.mazlove</groupId>
+    <groupId>com.mazlove</groupId>
     <artifactId>mazlove</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>pom</packaging>
-
     <name>Mazlove</name>
-    <description>Mazlove - Application de calins entre particuliers</description>
-    <url>https://www.codenameone.com</url>
-
-    <licenses>
-        <license>
-            <name>GPL v2 With Classpath Exception</name>
-            <url>https://openjdk.java.net/legal/gplv2+ce.html</url>
-            <distribution>repo</distribution>
-            <comments>A business-friendly OSS license</comments>
-        </license>
-    </licenses>
-
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-        <cn1.plugin.version>7.0.36</cn1.plugin.version>
-        <cn1.version>7.0.36</cn1.version>
-        <java.version>11</java.version>
-        <java-tests.version>11</java-tests.version>
-        <rhino.version>1.7.11</rhino.version>
-        <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
-        <cn1app.name>mazlove</cn1app.name>
-        <backend.java.version>17</backend.java.version>
-    </properties>
-
-    <repositories>
-        <repository>
-            <id>central</id>
-            <url>https://repo1.maven.org/maven2/</url>
-        </repository>
-    </repositories>
+    <description>Mazlove - réservation de séances de câlins professionnels</description>
 
     <modules>
-        <module>common</module>
-        <module>win</module>
-        <module>javase</module>
-        <module>javascript</module>
-        <module>android</module>
-        <module>ios</module>
         <module>backend</module>
     </modules>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>com.codenameone</groupId>
-                <artifactId>codenameone-core</artifactId>
-                <version>${cn1.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.codenameone</groupId>
-                <artifactId>codenameone-javase</artifactId>
-                <version>${cn1.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.codenameone</groupId>
-                <artifactId>codenameone-rad</artifactId>
-                <version>${cn1.version}</version>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 </project>

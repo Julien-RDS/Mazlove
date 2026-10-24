@@ -1,13 +1,18 @@
 package com.mazlove.backend.models;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.ToString;
+
 import java.time.LocalDateTime;
 
+/**
+ * Prestation tarifée proposée par un praticien (ex. « Séance découverte 1 h — 60 € »).
+ * Pas encore exposée par l'API : la table existe pour préparer l'affichage des tarifs.
+ */
 @Data
 @Entity
 @Table(name = "service_items")
@@ -16,6 +21,7 @@ import java.time.LocalDateTime;
 @EqualsAndHashCode(of = "id")
 @ToString(exclude = {"provider"})
 public class ServiceItem {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -30,6 +36,7 @@ public class ServiceItem {
     @Column(nullable = false, length = 500)
     private String description;
 
+    /** Prix en euros TTC. */
     @Column(nullable = false)
     private float price;
 
