@@ -1,0 +1,11 @@
+meta {
+  name: List reviews
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/providers/{{providerId}}/reviews
+  body: none
+  auth: none
+}

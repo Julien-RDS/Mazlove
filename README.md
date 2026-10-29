@@ -41,6 +41,34 @@ Mazlove/
 
 ## Démarrage en local
 
+### Avec Docker Compose
+
+Avec Docker et le plugin Compose installés, lancer à la racine :
+
+```bash
+make up
+make status
+make logs    # suivre les logs du backend
+make down    # arrêter les services en conservant les données
+```
+
+L'interface est sur http://localhost:3000, l'API sur http://localhost:3001,
+Swagger sur http://localhost:3001/swagger-ui.html et MailHog sur http://localhost:8025.
+Les codes de connexion sont envoyés à MailHog. PgAdmin est sur http://localhost:5050
+(identifiants locaux par défaut : `admin@mazlove.fr` / `admin`).
+
+Avec Compose, Spring exécute `schema.sql` et `seed.sql` au démarrage du backend ;
+ces scripts sont conçus pour être rejoués sans réinitialiser les données existantes.
+`make seed` permet aussi de rejouer le seed sur une base déjà initialisée. Les comptes suivants ont
+pour mot de passe `password123` : `alice@test.com`, `bob@test.com`,
+`sophie@test.com`, `marc@test.com` et `emma@test.com`.
+
+`make clean` supprime les volumes, y compris la base et les photos, ainsi que les
+images locales : à réserver à une réinitialisation volontaire. Les mots de passe et
+le JWT par défaut de Compose sont destinés au développement uniquement.
+
+### Sans Docker
+
 ### 1. Prérequis
 
 PostgreSQL et Redis doivent tourner. La base doit exister :
@@ -84,7 +112,9 @@ Mot de passe commun : `Mazlove2026!`
 | `samir@mazlove.test`   | Praticien vérifié               |
 | `ines@mazlove.test`    | Praticienne (non vérifiée)      |
 
-À la connexion, le code à 6 chiffres s'affiche dans la console du backend, sur une ligne `[DEV] Code de connexion`.
+À la connexion, le code à 6 chiffres est envoyé par SMTP. En développement, un
+serveur comme MailHog peut le recevoir ; l'option `MFA_DEV_LOG_OTP=true` affiche
+également le code dans les logs.
 
 ## Variables d'environnement
 
@@ -101,6 +131,10 @@ Mot de passe commun : `Mazlove2026!`
 | `DB_INIT_MODE`           | `always` rejoue schema.sql (idempotent), `never` sinon | `always`                                   |
 | `CACHE_TTL`              | Durée du cache Redis (`10m`, `600000`…)            | `10m`                                          |
 | `SPRING_PROFILES_ACTIVE` | `demo` (données fictives) ou `prod`                | aucun                                          |
+| `MAIL_HOST`, `MAIL_PORT` | Serveur SMTP | `localhost`, `1025` |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | Identifiants SMTP si nécessaires | vides |
+| `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` | Authentification et STARTTLS SMTP | `false` |
+| `UPLOAD_DIR` | Répertoire des images | `./uploads` |
 
 ## Parcours dans l'interface
 
@@ -114,6 +148,11 @@ Mot de passe commun : `Mazlove2026!`
 5. **Fin de séance**, puis **avis** du client.
 
 Un compte praticien sans fiche est guidé vers « Publier ma fiche ».
+Les prestations ont actuellement une durée en heures entières. Une séance en attente
+peut être annulée jusqu'à 24 heures avant son début ; le statut `ACCEPTED` indique
+que le code d'arrivée a été validé et que la séance a commencé. Le chiffre d'affaires
+du tableau de bord est `null` si une séance terminée n'a pas de prix enregistré,
+comme c'est le cas pour les anciennes réservations.
 
 ## Endpoints
 
@@ -128,11 +167,15 @@ Un compte praticien sans fiche est guidé vers « Publier ma fiche ».
 | GET     | `/api/providers/availability?lat=&lng=&date=` | public | Praticiens disponibles un jour donné |
 | POST    | `/api/providers`                        | PROVIDER  | Publier sa fiche |
 | POST    | `/api/providers/{id}/reviews`           | client    | Avis sur une séance terminée |
+| GET, POST | `/api/providers/{id}/services`       | public, propriétaire | Liste et création de prestations |
+| DELETE  | `/api/providers/{id}/services/{serviceId}` | propriétaire | Supprimer une prestation |
+| GET     | `/api/providers/me/sessions/upcoming`, `/api/providers/me/sessions/history`, `/api/providers/me/stats` | praticien | Tableau de bord |
+| GET, POST, DELETE | `/api/favorites` et `/api/favorites/{providerId}` | connecté | Favoris |
 | POST    | `/api/sessions`                         | connecté  | Réserver |
 | GET     | `/api/sessions/{id}`                    | participant | Détail d'une séance |
 | POST    | `/api/sessions/{id}/validate-arrival`   | praticien | Saisir le code d'arrivée |
 | POST    | `/api/sessions/{id}/confirm-end`        | participant | Terminer la séance |
-| POST    | `/api/sessions/{id}/cancel`             | participant | Annuler (avant le début) |
+| POST, DELETE | `/api/sessions/{id}/cancel` ou `/api/sessions/{id}` | participant | Annuler une séance en attente, au moins 24 h avant |
 | GET     | `/api/users/me`, `/me/sessions`, `/me/reviews` | connecté | Espace personnel |
 
 Toutes les erreurs ont le même format : `{ "status": 409, "message": "…", "fields": { "champ": "…" } }`.
@@ -142,7 +185,7 @@ Toutes les erreurs ont le même format : `{ "status": 409, "message": "…", "fi
 ```bash
 curl -X POST localhost:3001/api/auth/login -H 'Content-Type: application/json' \
      -d '{"email":"client@mazlove.test","password":"Mazlove2026!"}'
-# lire le code dans la console du backend, puis :
+# lire le code dans MailHog ou les logs de développement, puis :
 curl -X POST localhost:3001/api/auth/verify-otp -H 'Content-Type: application/json' \
      -d '{"email":"client@mazlove.test","code":"123456"}'
 ```
@@ -160,7 +203,7 @@ mvn gatling:test               # test de charge (API démarrée ; MAZLOVE_JWT po
 
 - `SPRING_PROFILES_ACTIVE=prod` : schéma non rejoué, Swagger désactivé, logs dans `LOG_PATH`.
 - `JWT_SECRET` fort et propre à l'environnement ; `MFA_DEV_LOG_OTP` est forcé à `false`.
-- Brancher l'envoi réel du code de connexion (email ou SMS) dans `MfaService.sendOtp`.
+- Configurer un service SMTP réel avec authentification et TLS pour l'envoi des codes.
 - Frontend : `npm run build`, puis servir `frontend/dist`. Si l'API est sur un autre domaine,
   définir `VITE_API_URL` au moment du build et l'ajouter à `ALLOWED_ORIGINS`.
 

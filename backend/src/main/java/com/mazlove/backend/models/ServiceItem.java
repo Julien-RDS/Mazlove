@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 
 /**
  * Prestation tarifée proposée par un praticien (ex. « Séance découverte 1 h — 60 € »).
- * Pas encore exposée par l'API : la table existe pour préparer l'affichage des tarifs.
  */
 @Data
 @Entity
@@ -39,6 +38,10 @@ public class ServiceItem {
     /** Prix en euros TTC. */
     @Column(nullable = false)
     private float price;
+
+    /** Durée en heures, cohérente avec la durée des séances existantes. */
+    @Column(nullable = false)
+    private int duration = 1;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;

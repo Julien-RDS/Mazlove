@@ -76,6 +76,24 @@ public class ProviderService {
         return toDTOs(providers, lat, lng);
     }
 
+    /** Filtres appliqués avant la pagination ; la note vient des avis, sans colonne dénormalisée. */
+    @Transactional(readOnly = true)
+    public List<ProviderDTO> searchNearby(double lat, double lng, int page, int size,
+                                          String category, Double minRating, String date) {
+        if (minRating != null && (!Double.isFinite(minRating) || minRating < 0 || minRating > 5)) {
+            throw new BadRequestException("La note minimale doit être comprise entre 0 et 5.");
+        }
+        String normalizedCategory = category == null || category.isBlank() ? null : category.trim();
+        String day = date == null || date.isBlank() ? null : resolveDayOfWeek(date);
+        GeoUtils.BoundingBox box = GeoUtils.boundingBox(lat, lng, SEARCH_RADIUS_KM);
+        List<Provider> providers = providerRepository.searchNearby(lat, lng, SEARCH_RADIUS_KM,
+                box.minLat(), box.maxLat(), box.minLng(), box.maxLng(),
+                normalizedCategory != null, normalizedCategory == null ? "" : normalizedCategory,
+                minRating != null, minRating == null ? 0.0 : minRating,
+                day != null, day == null ? "" : day, size, (long) page * size);
+        return toDTOs(providers, lat, lng);
+    }
+
     @Transactional(readOnly = true)
     public ProviderDTO getById(Long id) {
         return providerRepository.findById(id)
@@ -140,7 +158,7 @@ public class ProviderService {
      * Convertit une liste en calculant toutes les notes moyennes en UNE requête agrégée.
      * originLat/originLng : point de recherche pour la distance, ou null (page de détail).
      */
-    private List<ProviderDTO> toDTOs(List<Provider> providers, Double originLat, Double originLng) {
+    List<ProviderDTO> toDTOs(List<Provider> providers, Double originLat, Double originLng) {
         if (providers.isEmpty()) {
             return new ArrayList<>();
         }

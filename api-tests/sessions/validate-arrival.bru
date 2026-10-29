@@ -1,0 +1,21 @@
+meta {
+  name: Validate arrival
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/sessions/{{sessionId}}/validate-arrival
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "code": "{{arrivalCode}}"
+  }
+}

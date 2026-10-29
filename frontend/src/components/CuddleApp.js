@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CalendarDays, LogOut, UserRound } from 'lucide-react';
+import { Client } from '@stomp/stompjs';
 import { Api, SESSION_EXPIRED_EVENT, tokenStore } from '../api';
 import { loginPath, navigate, useRoute } from '../lib/router';
 import AuthScreen from './AuthScreen';
@@ -57,6 +58,31 @@ export default function CuddleApp() {
   useEffect(() => {
     refreshUser();
   }, [refreshUser]);
+
+  useEffect(() => {
+    const token = tokenStore.get();
+    if (!user || !token) return undefined;
+    const target = new URL(import.meta.env.VITE_API_URL || window.location.origin, window.location.origin);
+    target.protocol = target.protocol === 'https:' ? 'wss:' : 'ws:';
+    target.pathname = `${target.pathname.replace(/\/$/, '')}/ws/websocket`;
+    target.search = '';
+    target.hash = '';
+    const client = new Client({
+      brokerURL: target.toString(),
+      connectHeaders: { Authorization: `Bearer ${token}` },
+      reconnectDelay: 5000,
+      onConnect: () => client.subscribe('/user/queue/sessions', (frame) => {
+        try {
+          const event = JSON.parse(frame.body);
+          if (typeof event.message === 'string') notify(event.message);
+        } catch {
+          // Ignore malformed events without breaking the connection.
+        }
+      }),
+    });
+    client.activate();
+    return () => { client.deactivate(); };
+  }, [user, notify]);
 
   // Jeton expiré détecté par le client HTTP : on repasse en visiteur sans recharger la page.
   useEffect(() => {

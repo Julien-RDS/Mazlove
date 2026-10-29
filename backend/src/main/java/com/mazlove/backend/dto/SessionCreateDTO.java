@@ -22,8 +22,10 @@ public record SessionCreateDTO(
 
     @Min(value = 1, message = "Une séance dure au moins 1 heure.")
     @Max(value = 12, message = "Une séance ne peut pas dépasser 12 heures.")
-    int duration,
+    Integer duration,
 
     @Size(max = 1000, message = "Les consignes sont limitées à 1000 caractères.")
-    String notes
+    String notes,
+
+    Long serviceItemId
 ) {}

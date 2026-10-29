@@ -1,0 +1,34 @@
+meta {
+  name: Create provider
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/providers
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+body:json {
+  {
+    "bio": "Séances de relaxation",
+    "category": "relaxation",
+    "location": {
+      "latitude": 48.87,
+      "longitude": 2.35
+    },
+    "availability": [
+      {
+        "dayOfWeek": "MONDAY",
+        "startTime": "10:00",
+        "endTime": "18:00"
+      }
+    ],
+    "images": []
+  }
+}

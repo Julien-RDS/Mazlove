@@ -47,6 +47,33 @@ public interface ProviderRepository extends JpaRepository<Provider, Long> {
                               @Param("limit") int limit,
                               @Param("offset") int offset);
 
+    @Query(value = """
+            SELECT p.* FROM providers p
+            WHERE p.latitude BETWEEN :minLat AND :maxLat
+              AND p.longitude BETWEEN :minLng AND :maxLng
+              AND (6371 * acos(LEAST(1.0, GREATEST(-1.0,
+                    cos(radians(:lat)) * cos(radians(p.latitude))
+                    * cos(radians(p.longitude) - radians(:lng))
+                    + sin(radians(:lat)) * sin(radians(p.latitude)))))) <= :radiusKm
+              AND (:useCategory = false OR LOWER(p.category) = LOWER(:category))
+              AND (:useRating = false OR
+                   (SELECT AVG(r.rating) FROM reviews r WHERE r.provider_id = p.id) >= :minRating)
+              AND (:useDay = false OR EXISTS
+                   (SELECT 1 FROM provider_availability pa WHERE pa.provider_id = p.id AND pa.day_of_week = :day))
+            ORDER BY (6371 * acos(LEAST(1.0, GREATEST(-1.0,
+                    cos(radians(:lat)) * cos(radians(p.latitude))
+                    * cos(radians(p.longitude) - radians(:lng))
+                    + sin(radians(:lat)) * sin(radians(p.latitude)))))), p.id
+            LIMIT :limit OFFSET :offset
+            """, nativeQuery = true)
+    List<Provider> searchNearby(@Param("lat") double lat, @Param("lng") double lng,
+            @Param("radiusKm") double radiusKm, @Param("minLat") double minLat,
+            @Param("maxLat") double maxLat, @Param("minLng") double minLng,
+            @Param("maxLng") double maxLng, @Param("useCategory") boolean useCategory,
+            @Param("category") String category, @Param("useRating") boolean useRating,
+            @Param("minRating") double minRating, @Param("useDay") boolean useDay,
+            @Param("day") String day, @Param("limit") int limit, @Param("offset") long offset);
+
     /**
      * Praticiens dans le rayon qui ont au moins un créneau le jour demandé
      * (format java.time.DayOfWeek : "MONDAY", "TUESDAY"…). EXISTS plutôt qu'un JOIN + DISTINCT :

@@ -49,6 +49,14 @@ public class Session {
     @Column(nullable = false)
     private int duration = 1;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "service_item_id")
+    private ServiceItem serviceItem;
+
+    /** Prix convenu au moment de la réservation, indépendant du tarif futur. */
+    @Column(name = "price_snapshot")
+    private Float priceSnapshot;
+
     @Enumerated(EnumType.STRING)
     private Status status;
 

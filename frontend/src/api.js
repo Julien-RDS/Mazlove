@@ -118,6 +118,7 @@ export const Api = {
   },
   provider: (id) => api(`/providers/${id}`),
   providerReviews: (id) => api(`/providers/${id}/reviews`),
+  providerServices: (id) => api(`/providers/${id}/services`),
   createProvider: (body) => api('/providers', { method: 'POST', body }),
   addReview: (providerId, body) => api(`/providers/${providerId}/reviews`, { method: 'POST', body }),
 

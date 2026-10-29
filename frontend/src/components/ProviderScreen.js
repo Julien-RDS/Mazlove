@@ -26,6 +26,7 @@ import { Avatar, Button, CharCount, Field, Notice, Sheet, Spinner, Stars, Verifi
 export default function ProviderScreen({ id, user, position, notify }) {
   const [provider, setProvider] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [services, setServices] = useState([]);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
   const [booking, setBooking] = useState(false);
@@ -33,9 +34,10 @@ export default function ProviderScreen({ id, user, position, notify }) {
   const load = async () => {
     setStatus('loading');
     try {
-      const [p, r] = await Promise.all([Api.provider(id), Api.providerReviews(id)]);
+      const [p, r, s] = await Promise.all([Api.provider(id), Api.providerReviews(id), Api.providerServices(id)]);
       setProvider(p);
       setReviews(r);
+      setServices(s);
       setStatus('ready');
     } catch (e) {
       setError(e);
@@ -128,6 +130,19 @@ export default function ProviderScreen({ id, user, position, notify }) {
 
       <div className="grid gap-10 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-10">
+          {services.length > 0 && (
+            <section aria-labelledby="prestations" className="space-y-3">
+              <h2 id="prestations" className="text-2xl font-semibold">Prestations</h2>
+              <ul className="space-y-2">
+                {services.map((service) => (
+                  <li key={service.id} className="rounded-2xl bg-white p-4">
+                    <p className="font-bold">{service.name} · {service.duration} h · {service.price} €</p>
+                    <p>{service.description}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <section aria-labelledby="deroule" className="space-y-4">
             <h2 id="deroule" className="text-2xl font-semibold">
               Comment se passe une séance
@@ -199,6 +214,7 @@ export default function ProviderScreen({ id, user, position, notify }) {
       {booking && (
         <BookingSheet
           provider={provider}
+          services={services}
           onClose={() => setBooking(false)}
           onBooked={(session) => {
             setBooking(false);
@@ -276,7 +292,7 @@ function startTimesFor(availability, day, durationHours, now) {
   return [...starts].sort((a, b) => a - b).map(fromMinutes);
 }
 
-function BookingSheet({ provider, onClose, onBooked }) {
+function BookingSheet({ provider, services, onClose, onBooked }) {
   const name = firstName(provider.userName);
   const [now] = useState(() => new Date());
 
@@ -293,6 +309,7 @@ function BookingSheet({ provider, onClose, onBooked }) {
 
   const [day, setDay] = useState(days[0] || null);
   const [duration, setDuration] = useState(1);
+  const [serviceId, setServiceId] = useState('');
   const [time, setTime] = useState(null);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -318,6 +335,7 @@ function BookingSheet({ provider, onClose, onBooked }) {
         providerId: provider.id,
         startTime: `${toLocalDate(day)}T${time}:00`,
         duration,
+        serviceItemId: serviceId ? Number(serviceId) : null,
         notes: notes.trim() || null,
       });
       onBooked(session);
@@ -347,6 +365,21 @@ function BookingSheet({ provider, onClose, onBooked }) {
         <Notice>{name} n'a aucun créneau libre dans les quatre prochaines semaines.</Notice>
       ) : (
         <div className="space-y-6 pt-2">
+          {services.length > 0 && (
+            <Field label="Prestation">
+              {(props) => (
+                <select {...props} className={inputClass} value={serviceId} onChange={(event) => {
+                  const id = event.target.value;
+                  setServiceId(id);
+                  const selected = services.find((item) => String(item.id) === id);
+                  if (selected) setDuration(selected.duration);
+                }}>
+                  <option value="">Séance sans prestation choisie</option>
+                  {services.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.duration} h · {item.price} €</option>)}
+                </select>
+              )}
+            </Field>
+          )}
           <fieldset className="space-y-2">
             <legend className="font-bold">Jour</legend>
             <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -371,7 +404,7 @@ function BookingSheet({ provider, onClose, onBooked }) {
             </div>
           </fieldset>
 
-          <fieldset className="space-y-2">
+          {!serviceId && <fieldset className="space-y-2">
             <legend className="font-bold">Durée</legend>
             <div className="inline-flex rounded-full bg-brume p-1">
               {DURATIONS.map((h) => (
@@ -389,7 +422,7 @@ function BookingSheet({ provider, onClose, onBooked }) {
                 </button>
               ))}
             </div>
-          </fieldset>
+          </fieldset>}
 
           <fieldset className="space-y-2">
             <legend className="font-bold">Heure de début</legend>

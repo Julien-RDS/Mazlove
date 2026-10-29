@@ -66,6 +66,9 @@ public class SecurityConfig {
                         // Pré-requêtes CORS des navigateurs : jamais authentifiées.
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/providers/me/**").authenticated()
                         // Consultation libre des praticiens, de leurs créneaux et de leurs avis…
                         .requestMatchers(HttpMethod.GET, "/api/providers", "/api/providers/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()

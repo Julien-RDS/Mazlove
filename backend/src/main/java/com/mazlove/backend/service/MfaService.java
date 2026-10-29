@@ -36,15 +36,17 @@ public class MfaService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final StringRedisTemplate redisTemplate;
+    private final EmailService emailService;
     private final boolean devLogOtp;
 
     /**
-     * @param devLogOtp MFA_DEV_LOG_OTP=true affiche le code dans les logs : indispensable en local
-     *                  tant qu'aucun envoi email/SMS n'est branché, interdit en production.
+     * @param devLogOtp MFA_DEV_LOG_OTP=true affiche aussi le code dans les logs en développement.
      */
     public MfaService(StringRedisTemplate redisTemplate,
+                      EmailService emailService,
                       @Value("${mfa.dev-log-otp:false}") boolean devLogOtp) {
         this.redisTemplate = redisTemplate;
+        this.emailService = emailService;
         this.devLogOtp = devLogOtp;
     }
 
@@ -58,14 +60,14 @@ public class MfaService {
         String otp = generateOtp(normalized);
         redisTemplate.delete(ATTEMPTS_PREFIX + normalized);
 
+        // Une erreur de livraison doit remonter au client : ne pas annoncer une connexion réussie
+        // lorsque le code n'a pas été envoyé.
+        emailService.sendOtpEmail(normalized, otp);
+
         if (devLogOtp) {
             log.warn("[DEV] Code de connexion pour {} : {} (MFA_DEV_LOG_OTP=true, à désactiver en production)",
                     normalized, otp);
-        } else {
-            log.debug("Code de connexion généré pour {}", normalized);
         }
-        // TODO production : envoyer le code par email (SMTP/SendGrid) ou SMS (Twilio), par exemple :
-        // mailSender.send(normalized, "Votre code Mazlove", "Votre code de connexion : " + otp);
     }
 
     /**

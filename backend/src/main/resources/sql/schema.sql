@@ -66,8 +66,11 @@ CREATE TABLE IF NOT EXISTS service_items (
     name        VARCHAR(100) NOT NULL,
     description TEXT         NOT NULL,
     price       REAL         NOT NULL CHECK (price >= 0),
+    duration    INTEGER      NOT NULL DEFAULT 1 CHECK (duration BETWEEN 1 AND 12),
     created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE service_items ADD COLUMN IF NOT EXISTS duration INTEGER NOT NULL DEFAULT 1;
 
 -- Séances réservées (entité Session)
 CREATE TABLE IF NOT EXISTS sessions (
@@ -83,6 +86,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS duration INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS service_item_id BIGINT REFERENCES service_items(id) ON DELETE SET NULL;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS price_snapshot REAL;
 
 -- Avis (entité Review). provider_id est dénormalisé depuis sessions.provider_id
 -- pour lister les avis et calculer la note moyenne d'un praticien sans double jointure.
@@ -98,6 +103,13 @@ CREATE TABLE IF NOT EXISTS reviews (
 
 -- Ajout sans NOT NULL pour ne pas échouer sur d'anciennes lignes ; l'application le remplit toujours.
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS provider_id BIGINT REFERENCES providers (id) ON DELETE CASCADE;
+
+CREATE TABLE IF NOT EXISTS favorites (
+    user_id BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    provider_id BIGINT NOT NULL REFERENCES providers (id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, provider_id)
+);
 
 -- ─── Index ───────────────────────────────────────────────────────────────────
 -- (users.email a déjà un index implicite via UNIQUE : inutile d'en créer un second.)

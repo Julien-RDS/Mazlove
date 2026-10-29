@@ -9,9 +9,11 @@ import com.mazlove.backend.exception.ForbiddenException;
 import com.mazlove.backend.exception.NotFoundException;
 import com.mazlove.backend.models.Provider;
 import com.mazlove.backend.models.Session;
+import com.mazlove.backend.models.ServiceItem;
 import com.mazlove.backend.models.User;
 import com.mazlove.backend.repository.ProviderRepository;
 import com.mazlove.backend.repository.SessionRepository;
+import com.mazlove.backend.repository.ServiceItemRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,17 +53,20 @@ public class SessionService {
     private final AuthenticatedUserService authenticatedUserService;
     private final SessionMapper sessionMapper;
     private final NotificationService notificationService;
+    private final ServiceItemRepository serviceItemRepository;
 
     public SessionService(SessionRepository sessionRepository,
                           ProviderRepository providerRepository,
                           AuthenticatedUserService authenticatedUserService,
                           SessionMapper sessionMapper,
-                          NotificationService notificationService) {
+                          NotificationService notificationService,
+                          ServiceItemRepository serviceItemRepository) {
         this.sessionRepository = sessionRepository;
         this.providerRepository = providerRepository;
         this.authenticatedUserService = authenticatedUserService;
         this.sessionMapper = sessionMapper;
         this.notificationService = notificationService;
+        this.serviceItemRepository = serviceItemRepository;
     }
 
     /**
@@ -79,8 +84,15 @@ public class SessionService {
             throw new BadRequestException("Vous ne pouvez pas réserver une séance avec votre propre fiche.");
         }
 
+        ServiceItem item = dto.serviceItemId() == null ? null : serviceItemRepository
+                .findByIdAndProvider_Id(dto.serviceItemId(), provider.getId())
+                .orElseThrow(() -> new NotFoundException("Cette prestation n'appartient pas à ce praticien."));
+        Integer duration = item == null ? dto.duration() : item.getDuration();
+        if (duration == null || duration < 1 || duration > 12) {
+            throw new BadRequestException("Choisissez une durée entre 1 et 12 heures.");
+        }
         LocalDateTime start = dto.startTime().withSecond(0).withNano(0);
-        LocalDateTime end = start.plusHours(dto.duration());
+        LocalDateTime end = start.plusHours(duration);
         ensureWithinAvailability(provider, start, end);
         ensureNoOverlap(provider, start, end);
 
@@ -88,7 +100,9 @@ public class SessionService {
         session.setClient(client);
         session.setProvider(provider);
         session.setDatetime(start);
-        session.setDuration(dto.duration());
+        session.setDuration(duration);
+        session.setServiceItem(item);
+        session.setPriceSnapshot(item == null ? null : item.getPrice());
         session.setStatus(Session.Status.PENDING);
         session.setCodeValidation(generateValidationCode());
         session.setNotes(dto.notes() == null || dto.notes().isBlank() ? null : dto.notes().trim());
@@ -170,6 +184,10 @@ public class SessionService {
         if (session.getStatus() != Session.Status.PENDING) {
             throw new BadRequestException("Seule une séance en attente peut être annulée ; celle-ci est "
                     + statusLabel(session.getStatus()) + ".");
+        }
+
+        if (session.getDatetime().isBefore(LocalDateTime.now().plusHours(24))) {
+            throw new BadRequestException("L'annulation doit intervenir au moins 24 heures avant la séance.");
         }
 
         session.setStatus(Session.Status.CANCELLED);

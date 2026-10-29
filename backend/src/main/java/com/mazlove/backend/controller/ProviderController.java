@@ -46,10 +46,13 @@ public class ProviderController {
             @RequestParam double lat,
             @RequestParam double lng,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Double minRating,
+            @RequestParam(required = false) String date
     ) {
         checkCoordinates(lat, lng);
-        return ResponseEntity.ok(providerService.findNearby(lat, lng, Math.max(page, 0), Paging.clampSize(size)));
+        return ResponseEntity.ok(providerService.searchNearby(lat, lng, Math.max(page, 0), Paging.clampSize(size), category, minRating, date));
     }
 
     @Operation(summary = "Détail d'un praticien")
@@ -88,7 +91,7 @@ public class ProviderController {
     }
 
     private static void checkCoordinates(double lat, double lng) {
-        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        if (!Double.isFinite(lat) || !Double.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
             throw new BadRequestException("Coordonnées invalides : latitude entre -90 et 90, longitude entre -180 et 180.");
         }
     }

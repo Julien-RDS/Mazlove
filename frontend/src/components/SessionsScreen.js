@@ -404,7 +404,7 @@ function CancelSession({ session, onCancelled }) {
   return (
     <div className="space-y-3 rounded-3xl bg-white p-5" role="group" aria-label="Confirmer l'annulation">
       <p className="font-bold">Annuler cette séance ?</p>
-      <p className="text-nuit-doux">L'autre personne verra l'annulation dans ses séances.</p>
+      <p className="text-nuit-doux">L'annulation est possible au moins 24 heures avant la séance. L'autre personne verra l'annulation dans ses séances.</p>
       {error && <Notice tone="error">{error}</Notice>}
       <div className="flex flex-wrap gap-3">
         <Button variant="danger" loading={loading} onClick={cancel}>

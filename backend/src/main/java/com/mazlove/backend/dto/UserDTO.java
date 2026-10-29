@@ -35,6 +35,8 @@ public class UserDTO {
         private String clientName;
         private LocalDateTime datetime;
         private int duration;
+        private Long serviceItemId;
+        private Float price;
         private Session.Status status;
         private String notes;
 

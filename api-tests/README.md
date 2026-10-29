@@ -1,0 +1,3 @@
+# Collection Bruno
+
+Importer ce dossier dans Bruno et sélectionner l'environnement local. Adapter les identifiants, les IDs, la date future et le code d'arrivée aux données réelles. Les comptes de démonstration exigent le profil demo. Après Login, récupérer l'OTP dans MailHog (ou les journaux si activés), le saisir dans `otp` puis exécuter Verify OTP : le JWT est sauvegardé pour les requêtes authentifiées. Les actions praticien nécessitent un JWT praticien ; la réservation et l'avis nécessitent un JWT client. La séance doit respecter les disponibilités, et l'avis ne peut porter que sur une séance terminée du client. Les requêtes POST modifient les données : changer l'adresse avant chaque inscription et choisir une fiche qui n'existe pas encore avant création.

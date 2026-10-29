@@ -1,0 +1,14 @@
+# Used by the Makefile only when the managed environment supplies its proxy CA.
+services:
+  backend:
+    build:
+      secrets:
+        - proxy_ca
+  frontend:
+    build:
+      secrets:
+        - proxy_ca
+
+secrets:
+  proxy_ca:
+    file: ${CODEX_PROXY_CERT:?Set CODEX_PROXY_CERT to the proxy CA file}

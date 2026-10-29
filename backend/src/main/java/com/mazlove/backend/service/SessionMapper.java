@@ -54,6 +54,8 @@ public class SessionMapper {
         dto.setClientName(session.getClient().getName());
         dto.setDatetime(session.getDatetime());
         dto.setDuration(session.getDuration());
+        dto.setServiceItemId(session.getServiceItem() == null ? null : session.getServiceItem().getId());
+        dto.setPrice(session.getPriceSnapshot());
         dto.setStatus(session.getStatus());
         dto.setNotes(session.getNotes());
         dto.setViewerRole(viewerIsClient ? "CLIENT" : "PROVIDER");
