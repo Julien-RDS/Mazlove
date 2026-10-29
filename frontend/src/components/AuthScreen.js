@@ -31,7 +31,8 @@ export default function AuthScreen({ query, onAuthenticated }) {
   };
 
   return (
-    <div className="mx-auto max-w-md space-y-6 pt-2">
+    <div className="auth-page mx-auto max-w-md space-y-6 pt-2">
+      <div className="auth-welcome"><span aria-hidden="true">♡</span><p>VOTRE PARENTHÈSE VOUS ATTEND</p></div>
       {step === 'form' ? (
         <>
           <h1 id="page-title" tabIndex={-1} className="text-4xl font-semibold outline-none">
@@ -319,10 +320,7 @@ function CodeStep({ credentials, info, onBack, onVerified }) {
         </div>
       </form>
       {import.meta.env.DEV && (
-        <Notice title="Mode développement">
-          Sans envoi d'email configuré, le code s'affiche dans la console du backend (variable MFA_DEV_LOG_OTP=true ou
-          profil demo).
-        </Notice>
+        <Notice title="Emails de développement">Avec Docker, retrouvez votre code dans MailHog sur le port 8025.</Notice>
       )}
     </>
   );

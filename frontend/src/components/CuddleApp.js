@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { CalendarDays, LogOut, UserRound } from 'lucide-react';
+import { CalendarDays, LogOut, UserRound, Heart, Compass, ArrowUpRight, Sparkles } from 'lucide-react';
 import { Client } from '@stomp/stompjs';
 import { Api, SESSION_EXPIRED_EVENT, tokenStore } from '../api';
 import { loginPath, navigate, useRoute } from '../lib/router';
@@ -9,6 +9,7 @@ import ProviderOnboarding from './ProviderOnboarding';
 import ProviderScreen from './ProviderScreen';
 import { SessionDetailScreen, SessionsScreen } from './SessionsScreen';
 import { Button, Spinner, cx } from './ui';
+import './shell.css';
 
 /** Point de recherche d'origine (Paris centre), utilisé tel quel pour la sélection des praticiens. */
 const DEFAULT_POSITION = { lat: 48.87, lng: 2.35, label: 'Paris centre' };
@@ -121,7 +122,7 @@ export default function CuddleApp() {
     if (needsAuth && (!authReady || !user)) return <Spinner />;
     switch (route.name) {
       case 'discover':
-        return <DiscoverScreen query={route.query} position={position} />;
+        return <DiscoverScreen query={route.query} position={position} user={user} notify={notify} />;
       case 'provider':
         return <ProviderScreen key={route.params.id} id={route.params.id} user={user} position={position} notify={notify} />;
       case 'auth':
@@ -154,14 +155,16 @@ export default function CuddleApp() {
     }
   };
 
-  const navLink = (active) =>
-    cx(
-      'inline-flex h-10 items-center gap-2 rounded-full px-3 font-bold transition-colors',
-      active ? 'bg-white text-nuit' : 'text-nuit-doux hover:bg-white hover:text-nuit'
-    );
+  const favoritesActive = route.name === 'discover' && route.query.vue === 'favoris';
+  const navItems = [
+    { label: 'Explorer', href: '#/', icon: Compass, active: route.name === 'discover' && !favoritesActive },
+    { label: 'Mes favoris', href: '#/?vue=favoris', icon: Heart, active: favoritesActive },
+    { label: 'Mes séances', href: '#/seances', icon: CalendarDays, active: route.name === 'sessions' || route.name === 'session' },
+  ];
+  const navLink = (active) => cx('shell-nav-link', active && 'is-active');
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="app-shell">
       {/* Lien d'évitement : un bouton, car une ancre "#contenu" serait prise pour une route. */}
       <button
         type="button"
@@ -171,59 +174,67 @@ export default function CuddleApp() {
         Aller au contenu
       </button>
 
-      <header className="sticky top-0 z-30 border-b border-lilas/60 bg-brume/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
-          <a href="#/" className="font-display text-[1.7rem] font-semibold tracking-tight text-nuit">
-            mazlove
+      <header className="shell-header">
+        <div className="shell-header-inner">
+          <a href="#/" className="shell-logo" aria-label="Mazlove, accueil">
+            <span className="shell-logo-symbol" aria-hidden="true"><Heart size={21} fill="currentColor" strokeWidth={1.5} /></span>
+            mazlove<span className="shell-logo-dot">.</span>
           </a>
-          <nav aria-label="Navigation principale" className="flex items-center gap-1">
+          <nav aria-label="Navigation principale" className="shell-desktop-nav">
+            {navItems.map(({ label, href, icon: Icon, active }) => (
+              <a key={label} href={href} className={navLink(active)} aria-current={active ? 'page' : undefined}>
+                <Icon size={17} aria-hidden="true" /><span>{label}</span>
+              </a>
+            ))}
+          </nav>
+          <div className="shell-account">
             {user ? (
               <>
                 {user.role === 'PROVIDER' && (
                   <a
                     href={user.providerId ? `#/praticien/${user.providerId}` : '#/profil-praticien'}
-                    className={navLink(route.name === 'onboarding' || (route.name === 'provider' && Number(route.params.id) === user.providerId))}
+                    className="shell-provider-link"
                   >
                     <UserRound className="h-5 w-5" aria-hidden="true" />
                     <span className="sr-only sm:not-sr-only">{user.providerId ? 'Ma fiche' : 'Publier ma fiche'}</span>
                   </a>
                 )}
-                <a
-                  href="#/seances"
-                  className={navLink(route.name === 'sessions' || route.name === 'session')}
-                  aria-current={route.name === 'sessions' ? 'page' : undefined}
-                >
-                  <CalendarDays className="h-5 w-5" aria-hidden="true" />
-                  <span className="sr-only sm:not-sr-only">Mes séances</span>
-                </a>
-                <button type="button" onClick={logout} className={navLink(false)}>
+                <span className="shell-avatar" aria-label={`Compte de ${user.name || 'membre'}`}>{(user.name || 'M').slice(0, 1).toUpperCase()}</span>
+                <button type="button" onClick={logout} className="shell-logout" aria-label="Se déconnecter" title="Se déconnecter">
                   <LogOut className="h-5 w-5" aria-hidden="true" />
-                  <span className="sr-only sm:not-sr-only">Se déconnecter</span>
                 </button>
               </>
             ) : (
               route.name !== 'auth' && (
-                <a href={`#${loginPath(route.path)}`} className="inline-flex h-10 items-center rounded-full bg-nuit px-5 font-bold text-white hover:bg-nuit-800">
-                  Se connecter
+                <a href={`#${loginPath(route.path)}`} className="shell-login">
+                  Se connecter <ArrowUpRight size={16} aria-hidden="true" />
                 </a>
               )
             )}
-          </nav>
+          </div>
         </div>
       </header>
 
-      <main id="contenu" tabIndex={-1} className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 pt-6 outline-none sm:px-6">
+      <main id="contenu" tabIndex={-1} className="shell-main">
         {renderScreen()}
       </main>
 
-      <footer className="border-t border-lilas/60">
-        <p className="mx-auto max-w-5xl px-4 py-6 text-[0.95rem] text-nuit-doux sm:px-6">
-          Mazlove propose uniquement des séances non sexuelles. Vous pouvez arrêter une séance à tout moment, sans
-          justification.
-        </p>
+      <footer className="shell-footer">
+        <div className="shell-footer-inner">
+          <span className="shell-footer-signature"><Sparkles size={18} aria-hidden="true" /> Un peu plus de lien. Un peu plus de vous.</span>
+          <p>Séances non sexuelles. Votre consentement, à chaque instant.</p>
+        </div>
       </footer>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4" role="status" aria-live="polite">
+      <nav className="shell-mobile-nav" aria-label="Navigation mobile">
+        {navItems.map(({ label, href, icon: Icon, active }) => (
+          <a key={label} href={href} className={cx('shell-mobile-link', active && 'is-active')} aria-current={active ? 'page' : undefined}>
+            <Icon size={21} aria-hidden="true" /><span>{label}</span>
+          </a>
+        ))}
+      </nav>
+
+      <div className="shell-toasts pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4" role="status" aria-live="polite">
         {toasts.map((toast) => (
           <p key={toast.id} className="pointer-events-auto rounded-full bg-nuit px-5 py-2.5 font-bold text-white shadow-lg">
             {toast.message}

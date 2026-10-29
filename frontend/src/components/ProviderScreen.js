@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ArrowUpRight, CalendarDays, ChevronLeft, Clock3, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
 import { Api } from '../api';
 import { loginPath, navigate } from '../lib/router';
+import { providerVisual } from '../lib/providerVisual';
 import {
   DAY_LABELS,
   capitalize,
@@ -30,6 +31,7 @@ export default function ProviderScreen({ id, user, position, notify }) {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
   const [booking, setBooking] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
 
   const load = async () => {
     setStatus('loading');
@@ -91,25 +93,30 @@ export default function ProviderScreen({ id, user, position, notify }) {
   const name = provider.userName;
   const isOwnProfile = user?.providerId === provider.id;
   const distance = formatDistance(distanceKm(position, provider.location));
-  const startBooking = () => {
+  const startBooking = (service = services[0]) => {
+    setSelectedService(service || null);
     if (!user) navigate(loginPath(`/praticien/${provider.id}`));
     else setBooking(true);
   };
+  const startingPrice = services.length ? Math.min(...services.map((service) => service.price)) : null;
+  const visual = providerVisual(provider);
 
   return (
-    <div className="space-y-10 pb-8">
+    <div className="provider-detail space-y-8 pb-8">
       <BackLink />
 
-      <section className="grid gap-6 sm:grid-cols-[minmax(0,15rem)_1fr] sm:items-start">
-        <Gallery name={name} images={provider.images} />
-        <div className="space-y-3">
-          <h1 id="page-title" tabIndex={-1} className="text-4xl font-semibold outline-none sm:text-5xl">
+      <section className="provider-hero grid overflow-hidden rounded-[2rem] bg-[#f1d8c6] sm:grid-cols-[minmax(0,22rem)_1fr] sm:items-center">
+        <div className="relative">
+          <Gallery name={name} images={visual.isIllustration ? [visual.src] : provider.images} />
+          {visual.isIllustration && <span className="absolute bottom-3 left-3 rounded-full bg-black/50 px-3 py-1 text-xs text-white">Photo d’illustration</span>}
+        </div>
+        <div className="space-y-5 p-6 sm:p-9">
+          <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em]"><Sparkles size={15} aria-hidden="true" /> Votre prochaine parenthèse</span>
+          <h1 id="page-title" tabIndex={-1} className="text-5xl font-semibold outline-none sm:text-6xl">
             {name}
           </h1>
-          <p className="text-lg text-nuit-doux">
-            {provider.category}
-            {distance && `, ${distance} de ${position.label}`}
-          </p>
+          <p className="text-lg text-nuit-doux">{provider.category}</p>
+          {distance && <p className="flex items-center gap-2 text-sm"><MapPin size={16} aria-hidden="true" /> {distance} de {position.label}</p>}
           <div className="flex flex-wrap items-center gap-3">
             {provider.verified && <VerifiedBadge />}
             {provider.reviewCount > 0 ? (
@@ -125,25 +132,34 @@ export default function ProviderScreen({ id, user, position, notify }) {
             )}
           </div>
           <p className="max-w-prose whitespace-pre-line pt-2">{provider.bio}</p>
+          <button type="button" onClick={() => document.getElementById(services.length ? 'prestations' : 'dispos')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })} className="inline-flex items-center gap-2 rounded-full bg-[#24211e] px-6 py-3 font-bold text-white">Découvrir les séances <ArrowUpRight size={18} aria-hidden="true" /></button>
         </div>
       </section>
 
       <div className="grid gap-10 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-10">
           {services.length > 0 && (
-            <section aria-labelledby="prestations" className="space-y-3">
-              <h2 id="prestations" className="text-2xl font-semibold">Prestations</h2>
+            <section aria-labelledby="prestations" className="space-y-4">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-nuit-doux">Un moment à votre rythme</p>
+              <h2 id="prestations" className="scroll-mt-28 text-3xl font-semibold">Choisissez votre séance</h2>
               <ul className="space-y-2">
                 {services.map((service) => (
-                  <li key={service.id} className="rounded-2xl bg-white p-4">
-                    <p className="font-bold">{service.name} · {service.duration} h · {service.price} €</p>
-                    <p>{service.description}</p>
+                  <li key={service.id} className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-[#eee4dc] bg-white p-5 sm:p-6">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-lg">{service.name}</p>
+                      <p className="mt-1 text-sm text-nuit-doux">{service.description}</p>
+                      <p className="mt-3 flex items-center gap-1.5 text-sm"><Clock3 size={14} aria-hidden="true" /> {service.duration} h</p>
+                    </div>
+                    <div className="space-y-3 text-right">
+                      <p className="text-2xl font-bold">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(service.price)}</p>
+                      {!isOwnProfile && <Button size="sm" variant="secondary" onClick={() => startBooking(service)} disabled={provider.availability.length === 0} aria-label={`Choisir ${service.name}`}>Choisir <ArrowUpRight size={15} aria-hidden="true" /></Button>}
+                    </div>
                   </li>
                 ))}
               </ul>
             </section>
           )}
-          <section aria-labelledby="deroule" className="space-y-4">
+          <section aria-labelledby="deroule" className="space-y-5 rounded-3xl bg-[#f6eee7] p-6">
             <h2 id="deroule" className="text-2xl font-semibold">
               Comment se passe une séance
             </h2>
@@ -195,7 +211,9 @@ export default function ProviderScreen({ id, user, position, notify }) {
         </div>
 
         <aside aria-labelledby="dispos" className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <div className="space-y-4 rounded-3xl bg-white p-5">
+          <div className="space-y-5 rounded-[2rem] border border-[#eedfd3] bg-white p-6 shadow-sm">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#fff0e4] px-3 py-1.5 text-xs font-bold uppercase tracking-wider"><CalendarDays size={14} aria-hidden="true" /> Votre moment commence ici</span>
+            {startingPrice !== null && <p className="text-sm text-nuit-doux">À partir de <strong className="ml-1 text-3xl text-nuit">{startingPrice} €</strong><span className="ml-1">/ séance</span></p>}
             <h2 id="dispos" className="text-2xl font-semibold">
               Disponibilités
             </h2>
@@ -203,10 +221,11 @@ export default function ProviderScreen({ id, user, position, notify }) {
             {isOwnProfile ? (
               <Notice>C'est votre fiche : les clients la voient exactement ainsi.</Notice>
             ) : (
-              <Button size="lg" className="w-full" onClick={startBooking} disabled={provider.availability.length === 0}>
-                {user ? 'Réserver une séance' : 'Se connecter pour réserver'}
+              <Button size="lg" className="w-full" onClick={() => startBooking()} disabled={provider.availability.length === 0}>
+                {user ? 'Choisir mon créneau' : 'Se connecter pour réserver'} <ArrowUpRight size={18} aria-hidden="true" />
               </Button>
             )}
+            <p className="flex items-start gap-2 text-xs leading-relaxed text-nuit-doux"><ShieldCheck size={17} className="shrink-0" aria-hidden="true" /> Un cadre clair, vos limites respectées. Annulation possible jusqu'à 24 h avant la séance.</p>
           </div>
         </aside>
       </div>
@@ -215,6 +234,7 @@ export default function ProviderScreen({ id, user, position, notify }) {
         <BookingSheet
           provider={provider}
           services={services}
+          initialService={selectedService}
           onClose={() => setBooking(false)}
           onBooked={(session) => {
             setBooking(false);
@@ -238,7 +258,7 @@ function BackLink() {
 
 function Gallery({ name, images = [] }) {
   if (images.length <= 1) {
-    return <Avatar name={name} src={images[0]} className="aspect-[4/5] w-full max-w-[15rem] rounded-3xl text-5xl" />;
+    return <Avatar name={name} src={images[0]} className="aspect-[4/5] w-full text-7xl" />;
   }
   return (
     <ul className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2" aria-label={`Photos de ${name}`}>
@@ -292,7 +312,7 @@ function startTimesFor(availability, day, durationHours, now) {
   return [...starts].sort((a, b) => a - b).map(fromMinutes);
 }
 
-function BookingSheet({ provider, services, onClose, onBooked }) {
+function BookingSheet({ provider, services, initialService, onClose, onBooked }) {
   const name = firstName(provider.userName);
   const [now] = useState(() => new Date());
 
@@ -308,8 +328,8 @@ function BookingSheet({ provider, services, onClose, onBooked }) {
   }, [provider.availability, now]);
 
   const [day, setDay] = useState(days[0] || null);
-  const [duration, setDuration] = useState(1);
-  const [serviceId, setServiceId] = useState('');
+  const [duration, setDuration] = useState(initialService?.duration || services[0]?.duration || 1);
+  const [serviceId, setServiceId] = useState(String(initialService?.id || services[0]?.id || ''));
   const [time, setTime] = useState(null);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -326,6 +346,7 @@ function BookingSheet({ provider, services, onClose, onBooked }) {
   }, [times, time]);
 
   const endTime = time ? fromMinutes(toMinutes(time) + duration * 60) : null;
+  const chosenService = services.find((service) => String(service.id) === serviceId);
 
   const submit = async () => {
     setSubmitting(true);
@@ -350,11 +371,13 @@ function BookingSheet({ provider, services, onClose, onBooked }) {
       title={`Réserver avec ${name}`}
       onClose={onClose}
       footer={
-        <div className="space-y-3">
+        <div className="booking-summary space-y-3">
           {error && <Notice tone="error">{error}</Notice>}
-          <p className="min-h-[1.6em] font-bold" aria-live="polite">
-            {day && time ? `${formatLongDate(day)}, ${time} – ${endTime}` : 'Choisissez un jour et une heure'}
-          </p>
+          <div className="flex items-start justify-between gap-4" aria-live="polite">
+            <div><p className="text-xs font-bold uppercase tracking-wider text-nuit-doux">Votre réservation</p><p className="mt-1 text-sm font-bold">{day && time ? `${formatLongDate(day)}, ${time} – ${endTime}` : 'Choisissez un jour et une heure'}</p></div>
+            <p className="shrink-0 text-xl font-bold">{chosenService ? `${chosenService.price} €` : 'Tarif à convenir'}</p>
+          </div>
+          <p className="text-xs text-nuit-doux">Annulation jusqu'à 24 h avant. Aucun paiement en ligne à cette étape.</p>
           <Button size="lg" className="w-full" disabled={!day || !time} loading={submitting} onClick={submit}>
             Confirmer la réservation
           </Button>
@@ -365,6 +388,7 @@ function BookingSheet({ provider, services, onClose, onBooked }) {
         <Notice>{name} n'a aucun créneau libre dans les quatre prochaines semaines.</Notice>
       ) : (
         <div className="space-y-6 pt-2">
+          <div className="flex items-center gap-3 rounded-2xl bg-[#fff0e4] p-4"><CalendarDays className="shrink-0" size={24} aria-hidden="true" /><p className="text-sm">Un moment pour vous, avec <strong>{name}</strong>. Choisissez votre prestation, puis votre créneau.</p></div>
           {services.length > 0 && (
             <Field label="Prestation">
               {(props) => (
@@ -374,14 +398,13 @@ function BookingSheet({ provider, services, onClose, onBooked }) {
                   const selected = services.find((item) => String(item.id) === id);
                   if (selected) setDuration(selected.duration);
                 }}>
-                  <option value="">Séance sans prestation choisie</option>
                   {services.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.duration} h · {item.price} €</option>)}
                 </select>
               )}
             </Field>
           )}
-          <fieldset className="space-y-2">
-            <legend className="font-bold">Jour</legend>
+          <fieldset className="min-w-0 space-y-2">
+            <legend className="font-bold">Quel jour vous convient ?</legend>
             <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
               {days.map((d) => {
                 const selected = day && isSameDay(d, day);
@@ -392,8 +415,8 @@ function BookingSheet({ provider, services, onClose, onBooked }) {
                     aria-pressed={selected}
                     onClick={() => setDay(d)}
                     className={cx(
-                      'flex min-w-[4.5rem] shrink-0 flex-col items-center rounded-2xl px-3 py-2 transition-colors',
-                      selected ? 'bg-nuit text-white' : 'bg-brume hover:bg-lilas-pale'
+                      'flex min-h-[5rem] min-w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-full px-3 py-3 transition-colors',
+                      selected ? 'bg-nuit text-white' : 'bg-[#f8f1eb] hover:bg-[#f0daca]'
                     )}
                   >
                     <span className="text-[0.85rem]">{formatWeekday(d)}</span>
@@ -425,7 +448,8 @@ function BookingSheet({ provider, services, onClose, onBooked }) {
           </fieldset>}
 
           <fieldset className="space-y-2">
-            <legend className="font-bold">Heure de début</legend>
+            <legend className="font-bold">Choisissez votre horaire</legend>
+            <p className="text-xs text-nuit-doux">Horaires proposés selon le planning hebdomadaire. La disponibilité est vérifiée à la confirmation.</p>
             {times.length === 0 ? (
               <p className="text-nuit-doux">
                 Pas de créneau de {duration} h ce jour-là. Essayez une durée plus courte ou un autre jour.
@@ -439,8 +463,8 @@ function BookingSheet({ provider, services, onClose, onBooked }) {
                     aria-pressed={time === t}
                     onClick={() => setTime(t)}
                     className={cx(
-                      'rounded-lg py-2 font-bold tabular-nums transition-colors',
-                      time === t ? 'bg-nuit text-white' : 'bg-brume hover:bg-lilas-pale'
+                      'rounded-full py-3 font-bold tabular-nums transition-colors',
+                      time === t ? 'bg-nuit text-white' : 'bg-[#f8f1eb] hover:bg-[#f0daca]'
                     )}
                   >
                     {t}

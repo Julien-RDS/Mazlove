@@ -7,10 +7,10 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  /* 17 px : Atkinson Hyperlegible est un peu petite à 16 px. */
+  /* Taille de base adaptée aux cartes et aux contrôles sur mobile. */
   body {
     @apply bg-brume font-sans text-nuit antialiased;
-    font-size: 1.0625rem;
+    font-size: 1rem;
     line-height: 1.6;
   }
 
@@ -35,6 +35,15 @@
 }
 
 /* Respecte le réglage système « réduire les animations ». */
+.auth-page { padding: 35px 0 60px; }
+.auth-welcome { text-align: center; }
+.auth-welcome > span { display: inline-grid; place-items: center; width: 62px; height: 62px; font-size: 38px; color: #9b4c28; background: #f9dfca; border-radius: 22px; margin-bottom: 14px; transform: rotate(-8deg); }
+.auth-welcome > p { font-size: 10px; letter-spacing: 2px; color: #8a7969; }
+.auth-page h1 { text-align: center; font-family: Arial,sans-serif; font-size: 32px; letter-spacing: -1.3px; }
+.auth-page form { border: 1px solid #e9e2d7; box-shadow: 0 16px 60px #28231605; }
+.provider-detail h1 { font-family: Arial,sans-serif; letter-spacing: -2px; }
+.provider-detail h2 { font-family: Arial,sans-serif; letter-spacing: -.8px; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

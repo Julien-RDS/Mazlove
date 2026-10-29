@@ -110,15 +110,21 @@ export const Api = {
   // Praticiens (publics)
   // Sélection d'origine : 50 km autour du point, du plus proche au plus éloigné (fixé côté serveur).
   // Sans pagination demandée, l'URL reste exactement /api/providers?lat=…&lng=…
-  providersNearby: ({ lat, lng, page, size }) => {
+  providersNearby: ({ lat, lng, page, size, category, minRating, date }) => {
     const params = new URLSearchParams({ lat, lng });
     if (page !== undefined) params.set('page', page);
     if (size !== undefined) params.set('size', size);
+    if (category) params.set('category', category);
+    if (minRating) params.set('minRating', minRating);
+    if (date) params.set('date', date);
     return api(`/providers?${params}`);
   },
   provider: (id) => api(`/providers/${id}`),
   providerReviews: (id) => api(`/providers/${id}/reviews`),
   providerServices: (id) => api(`/providers/${id}/services`),
+  favorites: () => api('/favorites'),
+  addFavorite: (id) => api(`/favorites/${id}`, { method: 'POST' }),
+  removeFavorite: (id) => api(`/favorites/${id}`, { method: 'DELETE' }),
   createProvider: (body) => api('/providers', { method: 'POST', body }),
   addReview: (providerId, body) => api(`/providers/${providerId}/reviews`, { method: 'POST', body }),
 

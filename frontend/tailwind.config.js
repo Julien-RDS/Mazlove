@@ -6,10 +6,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        nuit: { DEFAULT: '#23233F', 800: '#34345A', doux: '#5D5B78' }, // texte, boutons, texte secondaire
-        brume: '#F1F0F6',                                               // fond de page
-        lilas: { DEFAULT: '#CFCBEA', pale: '#E9E7F5' },                  // bordures, surfaces douces
-        abricot: { DEFAULT: '#F4A462', pale: '#FCE6D2' },                // accent chaud (texte nuit dessus)
+        nuit: { DEFAULT: '#22231F', 800: '#3C3D34', doux: '#6B6B62' },
+        brume: '#F8F7F3',
+        lilas: { DEFAULT: '#E2DFD5', pale: '#F0EDE6' },
+        abricot: { DEFAULT: '#F26B35', pale: '#FBE7DA' },
         sauge: { DEFAULT: '#2F6650', pale: '#DCEBE3' },                  // vérifié, séance en cours
         alerte: { DEFAULT: '#B4443A', pale: '#F6E1DE' },                 // erreurs, annulation
       },
