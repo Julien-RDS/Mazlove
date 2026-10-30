@@ -1,0 +1,15 @@
+meta {
+  name: Revoquer
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{baseUrl}}/api/sessions/{{sessionId}}/share
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

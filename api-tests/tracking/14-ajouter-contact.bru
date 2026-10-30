@@ -1,0 +1,22 @@
+meta {
+  name: Ajouter contact
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{baseUrl}}/api/users/me/trusted-contacts
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+{
+  "name": "Camille",
+  "email": "camille@test.com"
+}
+}

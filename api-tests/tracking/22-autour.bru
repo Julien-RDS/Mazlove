@@ -1,0 +1,15 @@
+meta {
+  name: Autour
+  type: http
+  seq: 22
+}
+
+get {
+  url: {{baseUrl}}/api/providers/online?lat=48.858&lng=2.347&radius=5000
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

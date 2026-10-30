@@ -1,0 +1,21 @@
+meta {
+  name: Valider code
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/sessions/{{sessionId}}/validate-arrival
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+{
+  "code": "123456"
+}
+}

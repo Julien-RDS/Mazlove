@@ -52,7 +52,7 @@ SELECT c.id, p.id, CURRENT_DATE + v.at_time::time + v.day_offset * INTERVAL '1 d
        1, v.status, v.code, v.marker
 FROM (VALUES
     ('alice@test.com', 'sophie@test.com',  1, '14:00', 'PENDING',  '710001', 'seed:pending-sophie'),
-    ('alice@test.com', 'marc@test.com',   -1, '10:00', 'ACCEPTED', '710002', 'seed:accepted-marc'),
+    ('alice@test.com', 'marc@test.com',   -1, '10:00', 'IN_PROGRESS', '710002', 'seed:accepted-marc'),
     ('bob@test.com',   'emma@test.com',   -3, '10:00', 'DONE',     '710003', 'seed:done-emma'),
     ('alice@test.com', 'sophie@test.com', -5, '10:00', 'DONE',     '710004', 'seed:done-sophie'),
     ('bob@test.com',   'marc@test.com',   -7, '10:00', 'DONE',     '710005', 'seed:done-marc')
@@ -72,3 +72,10 @@ FROM (VALUES
 JOIN sessions s ON s.notes = v.marker AND s.status = 'DONE'
 WHERE NOT EXISTS (SELECT 1 FROM reviews r WHERE r.session_id = s.id)
 ON CONFLICT (session_id) DO NOTHING;
+
+INSERT INTO sessions(client_id,provider_id,datetime,duration,status,code_validation,notes,meeting_latitude,meeting_longitude,meeting_label)
+SELECT c.id,p.id,CURRENT_TIMESTAMP+INTERVAL '1 day',1,'ACCEPTED','123456','seed:tracking-demo',48.8584,2.3470,'Châtelet'
+FROM users c,providers p JOIN users u ON u.id=p.user_id
+WHERE c.email='alice@test.com' AND u.email='sophie@test.com' AND NOT EXISTS(SELECT 1 FROM sessions WHERE notes='seed:tracking-demo');
+INSERT INTO trusted_contacts(user_id,name,email) SELECT id,'Camille','camille@test.com' FROM users u WHERE email='alice@test.com'
+AND NOT EXISTS(SELECT 1 FROM trusted_contacts c WHERE c.user_id=u.id AND c.email='camille@test.com');

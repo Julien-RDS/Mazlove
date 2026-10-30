@@ -131,3 +131,30 @@ CREATE INDEX IF NOT EXISTS idx_sessions_client            ON sessions (client_id
 CREATE INDEX IF NOT EXISTS idx_sessions_provider_datetime ON sessions (provider_id, datetime);
 CREATE INDEX IF NOT EXISTS idx_reviews_user               ON reviews (user_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_provider           ON reviews (provider_id, created_at DESC);
+
+-- Phase 3. Existing ACCEPTED sessions meant IN_PROGRESS: migrate ONCE before adding milestones.
+DO $$ BEGIN
+ IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='sessions' AND column_name='started_at') THEN
+  ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_status_check;
+  UPDATE sessions SET status='IN_PROGRESS' WHERE status='ACCEPTED';
+ END IF;
+END $$;
+ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_status_check;
+ALTER TABLE sessions ADD CONSTRAINT sessions_status_check CHECK(status IN ('PENDING','ACCEPTED','EN_ROUTE','ARRIVED','IN_PROGRESS','DONE','CANCELLED'));
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS meeting_latitude DOUBLE PRECISION;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS meeting_longitude DOUBLE PRECISION;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS meeting_label VARCHAR(255);
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS travel_mode VARCHAR(16);
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS en_route_at TIMESTAMP;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS arrived_at TIMESTAMP;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ended_at TIMESTAMP;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_provider_en_route ON sessions(provider_id) WHERE status='EN_ROUTE';
+CREATE TABLE IF NOT EXISTS tracking_events(id BIGSERIAL PRIMARY KEY,session_id BIGINT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,event_type VARCHAR(32) NOT NULL,latitude DOUBLE PRECISION,longitude DOUBLE PRECISION,details VARCHAR(500),created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX IF NOT EXISTS idx_tracking_events_session ON tracking_events(session_id,created_at);
+CREATE TABLE IF NOT EXISTS trip_shares(token VARCHAR(64) PRIMARY KEY,session_id BIGINT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,expires_at TIMESTAMP NOT NULL,revoked BOOLEAN NOT NULL DEFAULT FALSE);
+CREATE TABLE IF NOT EXISTS trusted_contacts(id BIGSERIAL PRIMARY KEY,user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name VARCHAR(100) NOT NULL,email VARCHAR(255),phone VARCHAR(30));
+CREATE TABLE IF NOT EXISTS sos_alerts(id BIGSERIAL PRIMARY KEY,session_id BIGINT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,raised_by BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,latitude DOUBLE PRECISION,longitude DOUBLE PRECISION,status VARCHAR(16) NOT NULL DEFAULT 'OPEN',created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,resolved_at TIMESTAMP);
+CREATE TABLE IF NOT EXISTS consents(id BIGSERIAL PRIMARY KEY,user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,scope VARCHAR(40) NOT NULL,policy_version VARCHAR(16) NOT NULL,granted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,revoked_at TIMESTAMP);
+
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0;

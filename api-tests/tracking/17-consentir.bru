@@ -1,0 +1,19 @@
+meta {
+  name: Consentir
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseUrl}}/api/consents
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+{}
+}

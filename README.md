@@ -149,7 +149,7 @@ serveur comme MailHog peut le recevoir ; l'option `MFA_DEV_LOG_OTP=true` affiche
 
 Un compte praticien sans fiche est guidé vers « Publier ma fiche ».
 Les prestations ont actuellement une durée en heures entières. Une séance en attente
-peut être annulée jusqu'à 24 heures avant son début ; le statut `ACCEPTED` indique
+peut être annulée jusqu'à 24 heures avant son début ; le statut `IN_PROGRESS` indique
 que le code d'arrivée a été validé et que la séance a commencé. Le chiffre d'affaires
 du tableau de bord est `null` si une séance terminée n'a pas de prix enregistré,
 comme c'est le cas pour les anciennes réservations.
@@ -210,3 +210,15 @@ mvn gatling:test               # test de charge (API démarrée ; MAZLOVE_JWT po
 ## Licence
 
 Apache 2.0
+
+## Tester le tracking en 3 commandes
+
+```bash
+make demo                  # démarre les services et attend leur disponibilité
+make simulate SESSION=4 SCENARIO=HAPPY_PATH  # facultatif : utiliser l’ID affiché par /api/dev/demo-session
+make e2e                   # après npm ci et npx playwright install chromium dans frontend/
+```
+
+Ouvrir **http://localhost:3000/demo** puis **Lancer** suffit pour voir Alice suivre Sophie sans déplacer son téléphone. La console permet aussi le consentement manuel et le vrai GPS. Les liens `/t/:token` fonctionnent sans compte ; les alertes administrateur sont sur `/admin/sos` (compte ADMIN requis). Emails : http://localhost:8025.
+
+Voir [docs/TRACKING.md](docs/TRACKING.md) pour la migration des statuts, les limites PWA, la confidentialité, les tests, les variables et OSRM. Le profil `dev` donne accès aux comptes fictifs sans OTP : déployer en `prod`, reconstruire le frontend avec `VITE_DEMO=false` et configurer les secrets.

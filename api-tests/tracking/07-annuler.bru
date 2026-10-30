@@ -1,0 +1,15 @@
+meta {
+  name: Annuler
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/api/sessions/{{sessionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

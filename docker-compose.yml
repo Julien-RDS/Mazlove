@@ -38,6 +38,11 @@ services:
       mailhog:
         condition: service_started
     environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      OSRM_BASE_URL: ${OSRM_BASE_URL:-https://router.project-osrm.org}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+      TRACKING_ARRIVAL_RADIUS_M: ${TRACKING_ARRIVAL_RADIUS_M:-50}
+      TRACKING_SIGNAL_LOST_AFTER_S: ${TRACKING_SIGNAL_LOST_AFTER_S:-45}
       DATABASE_URL: jdbc:postgresql://postgres:5432/mazlove_db
       DB_USERNAME: ${DB_USERNAME:-mazlove}
       DB_PASSWORD: ${DB_PASSWORD:-mazlove_secret}
@@ -63,7 +68,11 @@ services:
       start_period: 60s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_DEMO: ${VITE_DEMO:-true}
+        VITE_MAP_STYLE_URL: ${VITE_MAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
     depends_on:
       backend:
         condition: service_healthy
@@ -75,6 +84,15 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    profiles: [routing]
+    volumes:
+      - ./osrm-data:/data
+    command: osrm-routed --algorithm mld /data/ile-de-france-latest.osrm
+    ports:
+      - "5000:5000"
 
   pgadmin:
     image: dpage/pgadmin4:latest

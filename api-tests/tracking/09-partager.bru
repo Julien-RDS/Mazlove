@@ -1,0 +1,15 @@
+meta {
+  name: Partager
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/sessions/{{sessionId}}/share
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

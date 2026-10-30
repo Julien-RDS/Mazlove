@@ -1,0 +1,23 @@
+meta {
+  name: Partir
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/sessions/{{sessionId}}/depart
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+{
+  "travelMode": "DRIVING",
+  "lat": 48.87,
+  "lng": 2.32
+}
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Simulation
+  type: http
+  seq: 23
+}
+
+post {
+  url: {{baseUrl}}/api/dev/tracking/{{sessionId}}/simulate?scenario=HAPPY_PATH&speedFactor=10
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

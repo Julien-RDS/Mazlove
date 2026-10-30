@@ -1,0 +1,28 @@
+meta {
+  name: Reserver
+  type: http
+  seq: 24
+}
+
+post {
+  url: {{baseUrl}}/api/sessions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+{
+  "providerId": 1,
+  "startTime": "2030-10-30T14:00:00",
+  "duration": 1,
+  "meetingPoint": {
+    "lat": 48.8584,
+    "lng": 2.347,
+    "label": "Châtelet"
+  }
+}
+}

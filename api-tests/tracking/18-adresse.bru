@@ -1,0 +1,15 @@
+meta {
+  name: Adresse
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseUrl}}/api/geocode?q=Chatelet%20Paris
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

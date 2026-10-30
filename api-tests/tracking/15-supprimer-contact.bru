@@ -1,0 +1,15 @@
+meta {
+  name: Supprimer contact
+  type: http
+  seq: 15
+}
+
+delete {
+  url: {{baseUrl}}/api/users/me/trusted-contacts/{{contactId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

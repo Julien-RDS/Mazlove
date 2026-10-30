@@ -1,0 +1,15 @@
+meta {
+  name: Contacts
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/users/me/trusted-contacts
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

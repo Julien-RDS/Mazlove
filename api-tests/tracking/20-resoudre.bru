@@ -1,0 +1,15 @@
+meta {
+  name: Resoudre
+  type: http
+  seq: 20
+}
+
+patch {
+  url: {{baseUrl}}/api/admin/sos/{{alertId}}/resolve
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

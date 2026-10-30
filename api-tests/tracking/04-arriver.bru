@@ -1,0 +1,15 @@
+meta {
+  name: Arriver
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/sessions/{{sessionId}}/arrived
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

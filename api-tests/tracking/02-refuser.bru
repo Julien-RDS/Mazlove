@@ -1,0 +1,15 @@
+meta {
+  name: Refuser
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/sessions/{{sessionId}}/decline
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

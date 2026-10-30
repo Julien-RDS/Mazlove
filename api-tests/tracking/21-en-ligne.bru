@@ -1,0 +1,23 @@
+meta {
+  name: En ligne
+  type: http
+  seq: 21
+}
+
+put {
+  url: {{baseUrl}}/api/providers/me/online
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+{
+  "online": true,
+  "lat": 48.858,
+  "lng": 2.347
+}
+}

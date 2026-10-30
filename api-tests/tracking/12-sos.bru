@@ -1,0 +1,19 @@
+meta {
+  name: SOS
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/api/sessions/{{sessionId}}/sos
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+{}
+}
