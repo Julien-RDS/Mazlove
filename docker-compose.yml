@@ -37,6 +37,7 @@ services:
         condition: service_healthy
       mailhog:
         condition: service_started
+        required: false # Compose >= 2.20 : le backend démarre aussi sans le profil dev
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       OSRM_BASE_URL: ${OSRM_BASE_URL:-https://router.project-osrm.org}
@@ -61,7 +62,7 @@ services:
     ports:
       - "3001:3001"
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:3001/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3001/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -79,8 +80,11 @@ services:
     ports:
       - "3000:3000"
 
+  # Outils de développement : profil "dev" (activé par défaut via le Makefile).
+  # Hors profil dev, définir MAIL_HOST/MAIL_PORT vers un vrai SMTP.
   mailhog:
     image: mailhog/mailhog:v1.0.1
+    profiles: [dev]
     ports:
       - "1025:1025"
       - "8025:8025"
@@ -95,7 +99,8 @@ services:
       - "5000:5000"
 
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:9.18
+    profiles: [dev]
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@mazlove.fr}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}

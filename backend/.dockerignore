@@ -1,3 +1,21 @@
+# Le Dockerfile ne copie que pom.xml et src/ : tout le reste est exclu du contexte.
 target
-.env
 uploads
+logs
+*.log
+.env
+.env.*
+.idea
+.vscode
+*.iml
+.classpath
+.project
+.settings
+Dockerfile
+.dockerignore
+*.md
+.DS_Store
+Thumbs.db
+
+# Le build utilise -Dmaven.test.skip=true : les tests ne servent pas à l'image.
+src/test

@@ -4,6 +4,10 @@ else
 COMPOSE ?= docker compose
 endif
 
+# Outils de développement (MailHog, PgAdmin) : profil Compose "dev", actif par défaut.
+# Déploiement sans eux : make up COMPOSE_PROFILES=
+export COMPOSE_PROFILES ?= dev
+
 .PHONY: up down logs seed test clean status swagger mail db
 
 up:
