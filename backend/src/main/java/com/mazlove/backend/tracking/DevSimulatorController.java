@@ -65,7 +65,7 @@ public class DevSimulatorController {
   @Transactional
   public Object reset(Principal p) {
     long id = demoId();
-    access.assertProvider(p.getName(), id);
+    access.lockProvider(p.getName(), id);
     simulator.stop(id);
     store.clear(id);
     db.update(
@@ -76,6 +76,7 @@ public class DevSimulatorController {
         id);
     db.update("DELETE FROM tracking_events WHERE session_id=?", id);
     db.update("DELETE FROM trip_shares WHERE session_id=?", id);
+    db.update("DELETE FROM sos_alerts WHERE session_id=?", id);
     return Map.of("id", id);
   }
 }

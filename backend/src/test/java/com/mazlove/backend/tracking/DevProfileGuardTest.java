@@ -31,4 +31,22 @@ class DevProfileGuardTest {
     env.setActiveProfiles("prod");
     assertThrows(IllegalStateException.class, () -> new DevProfileGuard(env));
   }
+
+  @Test
+  void productionRequiresPrivateKeyAndExplicitHttpsOrigins() {
+    var env =
+        new MockEnvironment()
+            .withProperty("jwt.secret", "a-private-production-key-at-least-thirty-two-bytes")
+            .withProperty("cors.allowed-origins", "https://mazlove.example")
+            .withProperty("tracking.public-base-url", "https://mazlove.example");
+    env.setActiveProfiles("prod");
+    assertDoesNotThrow(() -> new DevProfileGuard(env));
+    env.setProperty("cors.allowed-origins", "https://*.example");
+    assertThrows(IllegalStateException.class, () -> new DevProfileGuard(env));
+    env.setProperty("cors.allowed-origins", "http://localhost:3000");
+    assertThrows(IllegalStateException.class, () -> new DevProfileGuard(env));
+    env.setProperty("cors.allowed-origins", "https://mazlove.example");
+    env.setProperty("jwt.secret", "dev_secret_change_in_production_32chars");
+    assertThrows(IllegalStateException.class, () -> new DevProfileGuard(env));
+  }
 }

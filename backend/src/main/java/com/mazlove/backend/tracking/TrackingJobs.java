@@ -29,10 +29,13 @@ public class TrackingJobs {
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void changed(SessionLifecycle.Changed e) {
+    var current =
+        db.queryForList("SELECT status FROM sessions WHERE id=? FOR UPDATE", String.class, e.id());
     if (java.util.Set.of("ARRIVED", "DONE", "CANCELLED").contains(e.status())) {
       store.clear(e.id());
       db.update("UPDATE trip_shares SET revoked=true WHERE session_id=?", e.id());
     }
+    if (current.isEmpty() || !current.get(0).equals(e.status())) return;
     ws.convertAndSend(
         "/topic/session." + e.id() + ".status",
         Map.of("status", e.status(), "message", e.message(), "at", System.currentTimeMillis()));
@@ -64,11 +67,13 @@ public class TrackingJobs {
   @Scheduled(fixedDelay = 10000)
   @Transactional
   public void signal() {
-    for (Long id : db.queryForList("SELECT id FROM sessions WHERE status='EN_ROUTE'", Long.class))
+    for (Long id :
+        db.queryForList("SELECT id FROM sessions WHERE status='EN_ROUTE' ORDER BY id", Long.class))
       sessions
-          .findById(id)
+          .lockById(id)
           .ifPresent(
               s -> {
+                if (s.getStatus() != com.mazlove.backend.models.Session.Status.EN_ROUTE) return;
                 var last = store.last(id);
                 long at =
                     last == null

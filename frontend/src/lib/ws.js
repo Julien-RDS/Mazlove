@@ -11,12 +11,17 @@ export function wsUrl(path = "/ws") {
   return u.toString();
 }
 export function wsClient(token, options = {}) {
-  return new Client({
+  const client = new Client({
     brokerURL: wsUrl(),
     connectHeaders: { Authorization: `Bearer ${token}` },
     reconnectDelay: 3000,
     heartbeatIncoming: 10000,
     heartbeatOutgoing: 10000,
     ...options,
+    onWebSocketClose: (event) => {
+      if (event.code === 1008) client.deactivate();
+      options.onWebSocketClose?.(event);
+    },
   });
+  return client;
 }

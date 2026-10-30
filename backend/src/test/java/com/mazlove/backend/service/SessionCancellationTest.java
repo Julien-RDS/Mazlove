@@ -59,7 +59,7 @@ class SessionCancellationTest {
     session.setClient(client);
     session.setProvider(provider);
     session.setStatus(Session.Status.PENDING);
-    when(sessions.findById(42L)).thenReturn(Optional.of(session));
+    when(sessions.lockById(42L)).thenReturn(Optional.of(session));
   }
 
   @Test

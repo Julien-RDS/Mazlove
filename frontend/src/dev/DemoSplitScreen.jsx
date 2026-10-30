@@ -1,3 +1,4 @@
+import ProviderJourney from "../components/tracking/ProviderJourney";
 import React, { useState, useEffect } from "react";
 import { trackingApi as api } from "../lib/trackingApi";
 import TripPanel from "../components/tracking/TripPanel";
@@ -28,7 +29,8 @@ export default function DemoSplitScreen() {
       api(`/sessions/${id}`, a.token),
       api(`/sessions/${id}`, p.token),
     ]);
-    S({ a: a.token, p: p.token, id, client, provider });
+    const providerUser = await api("/users/me", p.token);
+    S({ a: a.token, p: p.token, id, client, provider, providerUser });
   };
   useEffect(() => {
     load().catch((e) => E(e.message));
@@ -99,7 +101,16 @@ export default function DemoSplitScreen() {
           <input
             type="checkbox"
             checked={real}
-            onChange={(e) => G(e.target.checked)}
+            onChange={async (e) => {
+              const next = e.target.checked;
+              try {
+                if (next && state)
+                  await api(`/dev/tracking/${state.id}/stop`, state.p, "POST");
+                G(next);
+              } catch (error) {
+                E(error.message);
+              }
+            }}
           />
           Vrai GPS
         </label>
@@ -125,11 +136,17 @@ export default function DemoSplitScreen() {
           </section>
           <section>
             <h2>Sophie — prestataire</h2>
-            <TripPanel
-              session={state.provider}
+            <ProviderJourney
               token={state.p}
-              simulated={!real}
-            />
+              user={state.providerUser}
+              enabled={real}
+            >
+              <TripPanel
+                session={state.provider}
+                token={state.p}
+                simulated={!real}
+              />
+            </ProviderJourney>
           </section>
         </div>
       )}

@@ -50,6 +50,16 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
   if (await consent.isVisible()) await consent.click();
   await pp.getByRole("button", { name: "Je pars", exact: true }).click();
   await expect(cp.getByText("Statut : En route")).toBeVisible();
+  const snapshot = async () =>
+    (await request.get(`/api/tracking/${id}/snapshot`, { headers })).json();
+  await expect
+    .poll(async () => (await snapshot()).pos?.etaSeconds, { timeout: 15000 })
+    .toBeGreaterThan(0);
+  const initialEta = (await snapshot()).pos.etaSeconds;
+  await pp.evaluate(() => (location.hash = "/"));
+  await expect(
+    pp.getByRole("heading", { name: "Du départ au premier bonjour." }),
+  ).toBeVisible();
   // Last 150m of the recorded route; reach it gradually to stay within the 70m/s filter.
   const selected = [];
   let rest = 0;
@@ -65,6 +75,7 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
     if (rest < 0) rest += 100;
   }
   selected.push(route.at(-1));
+  let step = 0;
   for (const [lng, lat] of selected) {
     await provider.setGeolocation({
       latitude: lat,
@@ -72,6 +83,16 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
       accuracy: 5,
     });
     await pp.waitForTimeout(3100);
+    if (++step === Math.max(2, Math.floor(selected.length / 2))) {
+      await expect
+        .poll(async () => (await snapshot()).pos?.etaSeconds, {
+          timeout: 15000,
+        })
+        .toBeLessThan(initialEta);
+      await provider.setOffline(true);
+      await pp.waitForTimeout(1200);
+      await provider.setOffline(false);
+    }
   }
   await provider.setGeolocation({
     latitude: 48.8584,
@@ -87,6 +108,7 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
   await expect(cp.getByText("Statut : Arrivé", { exact: true })).toBeVisible({
     timeout: 20000,
   });
+  await pp.evaluate((id) => (location.hash = `/seances/${id}`), id);
   await pp.getByLabel("Code donné par le client").fill("123456");
   await pp.getByRole("button", { name: "Démarrer la séance" }).click();
   await expect(

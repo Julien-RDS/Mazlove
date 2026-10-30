@@ -35,3 +35,30 @@
   .shell-mobile-link.is-active { background: #f5e2d5; color: #a53b0e; }
   .shell-toasts { top: 84px; bottom: auto; }
 }
+
+.journey-banner {
+  position: relative;
+  z-index: 20;
+  padding: 12px 24px;
+  background: #edf2e4;
+  border-bottom: 1px solid #cbd6bc;
+  font-size: 13px;
+  color: #31432d;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.journey-banner a,
+.journey-banner button {
+  min-height: 44px;
+  padding: 10px;
+  text-decoration: underline;
+}
+.journey-banner p {
+  margin: 0;
+}
+.journey-banner [role="alert"] {
+  width: 100%;
+  color: #8a301c;
+}

@@ -30,7 +30,7 @@ public class TrackingRestController {
       Principal p,
       @PathVariable Long id,
       @jakarta.validation.Valid @RequestBody MeetingPoint point) {
-    Session s = access.assertParticipant(p.getName(), id);
+    Session s = access.lockParticipant(p.getName(), id);
     if (!s.getClient().getEmail().equals(p.getName()))
       throw new ForbiddenException("Le client choisit le rendez-vous.");
     if (s.getStatus() != Session.Status.PENDING && s.getStatus() != Session.Status.ACCEPTED)

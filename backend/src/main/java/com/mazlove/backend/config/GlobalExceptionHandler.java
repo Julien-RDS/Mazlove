@@ -95,7 +95,7 @@ public class GlobalExceptionHandler {
    */
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex) {
-    log.debug("Argument invalide : {}", ex.getMessage());
+    log.debug("Argument invalide : {}", ex.getClass().getSimpleName());
     return build(
         HttpStatus.BAD_REQUEST, "Requête invalide. Vérifiez les informations saisies.", null);
   }
@@ -155,10 +155,22 @@ public class GlobalExceptionHandler {
         null);
   }
 
-  /** Filet de sécurité : la trace complète part dans les logs, jamais dans la réponse. */
+  @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+  public ResponseEntity<ApiError> handleStatus(
+      org.springframework.web.server.ResponseStatusException ex) {
+    return ResponseEntity.status(ex.getStatusCode())
+        .body(
+            ApiError.of(
+                ex.getStatusCode().value(),
+                ex.getReason() == null ? "Action refusée." : ex.getReason()));
+  }
+
+  /**
+   * Filet de sécurité : ne pas journaliser les données de la requête ni les messages techniques.
+   */
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
-    log.error("Erreur inattendue", ex);
+    log.error("Erreur inattendue : {}", ex.getClass().getSimpleName());
     return build(
         HttpStatus.INTERNAL_SERVER_ERROR,
         "Une erreur inattendue est survenue. Réessayez dans quelques instants.",

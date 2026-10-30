@@ -29,10 +29,11 @@ public class DiscoveryTrackingController {
 
   @PutMapping("/api/providers/me/online")
   @Operation(summary = "Signaler sa disponibilité avec une position approximative")
+  @org.springframework.transaction.annotation.Transactional
   public void online(Principal p, @RequestBody Online o) {
     var ids =
         db.queryForList(
-            "SELECT id FROM providers WHERE user_id=?",
+            "SELECT id FROM providers WHERE user_id=? FOR UPDATE",
             Long.class,
             access.user(p.getName()).getId());
     if (ids.isEmpty()) throw new ForbiddenException("Fiche prestataire requise.");
@@ -59,6 +60,7 @@ public class DiscoveryTrackingController {
                 Math.rint(o.lat() / .0018) * .0018 + jitter),
             id);
     redis.opsForValue().set("online:" + id, "1", Duration.ofSeconds(90));
+    redis.expire("geo:online", Duration.ofMinutes(2));
   }
 
   @GetMapping("/api/providers/online")

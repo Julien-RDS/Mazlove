@@ -13,10 +13,18 @@ import org.springframework.messaging.support.*;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
 class StompSecurityTest {
+  com.mazlove.backend.config.AuthenticatedSockets sockets =
+      mock(com.mazlove.backend.config.AuthenticatedSockets.class);
+
+  @org.junit.jupiter.api.BeforeEach
+  void sockets() {
+    when(sockets.valid(any())).thenReturn(true);
+  }
+
   SessionAccessPolicy access = mock(SessionAccessPolicy.class);
   StompAuthChannelInterceptor interceptor =
       new StompAuthChannelInterceptor(
-          mock(JWTService.class), mock(UserDetailsService.class), access);
+          mock(JWTService.class), mock(UserDetailsService.class), access, sockets);
 
   private Message<byte[]> message(StompCommand command, String dest, boolean signed) {
     var a = StompHeaderAccessor.create(command);

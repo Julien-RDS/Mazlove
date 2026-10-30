@@ -18,7 +18,15 @@ class TrackingServiceTest {
   SimpMessagingTemplate ws = mock(SimpMessagingTemplate.class);
   JdbcTemplate db = mock(JdbcTemplate.class);
   TrackingService service =
-      new TrackingService(access, store, routing, new TrackingConfig(), life, ws, db);
+      new TrackingService(
+          access,
+          store,
+          routing,
+          new TrackingConfig(),
+          life,
+          ws,
+          db,
+          mock(TrackingPublisher.class));
   Session session;
 
   @BeforeEach
@@ -32,7 +40,7 @@ class TrackingServiceTest {
     session.setMeetingLatitude(48.8584);
     session.setMeetingLongitude(2.347);
     session.setTravelMode(TravelMode.DRIVING);
-    when(access.assertProvider("p", 1L)).thenReturn(session);
+    when(access.lockProvider("p", 1L)).thenReturn(session);
     when(store.rate(1)).thenReturn(true);
   }
 
@@ -49,7 +57,7 @@ class TrackingServiceTest {
 
   @Test
   void clientCannotSend() {
-    when(access.assertProvider("client", 1L))
+    when(access.lockProvider("client", 1L))
         .thenThrow(new ForbiddenException("Prestataire uniquement"));
     assertThrows(ForbiddenException.class, () -> service.ingest("client", 1, p(48, 2, 5, 1)));
   }

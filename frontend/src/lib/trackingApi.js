@@ -1,3 +1,4 @@
+import { tokenStore, SESSION_EXPIRED_EVENT } from "../api";
 export async function trackingApi(
   path,
   token,
@@ -28,7 +29,16 @@ export async function trackingApi(
   try {
     value = text ? JSON.parse(text) : null;
   } catch {}
-  if (!response.ok)
-    throw new Error(value?.message || "Action indisponible. Réessayez.");
+  if (!response.ok) {
+    if (response.status === 401 && token && tokenStore.get() === token) {
+      tokenStore.clear();
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
+    const error = new Error(
+      value?.message || "Action indisponible. Réessayez.",
+    );
+    error.status = response.status;
+    throw error;
+  }
   return value;
 }

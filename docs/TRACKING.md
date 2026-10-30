@@ -1,5 +1,8 @@
 # Suivi de trajet — Phase 3
 
+Mise à jour phase 4 : [fiabilité et résultats](TRACKING-PHASE4.md), [production et rollback](PRODUCTION.md). Le GPS est maintenant global ; les JWT STOMP sont contrôlés pendant toute la connexion et les emails SOS passent par une file durable.
+
+
 **Flux.** React/MapLibre → STOMP natif `/ws` → Spring → Redis (position 120 s), PostgreSQL (jalons/événements 30 jours). OSRM a 2 s de délai maximum ; son échec produit une ligne droite ×1,3. Spring Boot 3.1 utilise `RestTemplate` (le `RestClient` du prompt nécessite Spring 6.1). Marche/vélo : géométrie voiture, durée estimée. Aucune clé payante.
 
 **Accès.** JWT uniquement dans CONNECT. Topics privés `/topic/tracking.{id}`, `/topic/session.{id}.status` : participants/admin ; `/user/queue/notifications`, `/user/queue/errors` ; `/topic/admin.alerts` : admin. Les positions entrantes sont réservées au prestataire. Aucun historique GPS continu. Les snapshots et liens publics ne révèlent plus de position après arrivée/annulation/fin ; les liens sont immédiatement révoqués (priorité à cette règle de confidentialité plutôt qu’au maintien une heure après l’arrivée). Les coordonnées publiques sont arrondies ; les prestataires disponibles sont floutés sur une grille ~200 m.

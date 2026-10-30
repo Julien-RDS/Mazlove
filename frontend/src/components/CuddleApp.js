@@ -1,3 +1,4 @@
+import ProviderJourney from "./tracking/ProviderJourney";
 import React, {
   lazy,
   Suspense,
@@ -63,20 +64,23 @@ export default function CuddleApp() {
 
   /** Recharge le profil (après connexion, création de fiche…) et le renvoie. */
   const refreshUser = useCallback(async () => {
-    if (!tokenStore.get()) {
+    const requestedToken = tokenStore.get();
+    if (!requestedToken) {
       setUser(null);
       setAuthReady(true);
       return null;
     }
     try {
       const me = await Api.me();
+      if (tokenStore.get() !== requestedToken) return null;
       setUser(me);
       return me;
     } catch {
+      if (tokenStore.get() !== requestedToken) return null;
       setUser(null);
       return null;
     } finally {
-      setAuthReady(true);
+      if (tokenStore.get() === requestedToken) setAuthReady(true);
     }
   }, []);
 
@@ -116,6 +120,18 @@ export default function CuddleApp() {
     window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
   }, [notify]);
+
+  useEffect(() => {
+    const storage = (e) => {
+      if (e.key === "mazlove.token") {
+        setUser(null);
+        setAuthReady(!e.newValue);
+        refreshUser();
+      }
+    };
+    window.addEventListener("storage", storage);
+    return () => window.removeEventListener("storage", storage);
+  }, [refreshUser]);
 
   // À chaque changement d'écran : retour en haut et focus sur le titre, pour que les lecteurs
   // d'écran annoncent la nouvelle page (une SPA ne le fait pas d'elle-même).
@@ -228,124 +244,129 @@ export default function CuddleApp() {
   const navLink = (active) => cx("shell-nav-link", active && "is-active");
 
   return (
-    <div className="app-shell">
-      {/* Lien d'évitement : un bouton, car une ancre "#contenu" serait prise pour une route. */}
-      <button
-        type="button"
-        onClick={() => document.getElementById("contenu")?.focus()}
-        className="sr-only z-50 rounded-full bg-nuit px-4 py-2 font-bold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-3"
-      >
-        Aller au contenu
-      </button>
+    <ProviderJourney token={user ? tokenStore.get() : null} user={user}>
+      <div className="app-shell">
+        {/* Lien d'évitement : un bouton, car une ancre "#contenu" serait prise pour une route. */}
+        <button
+          type="button"
+          onClick={() => document.getElementById("contenu")?.focus()}
+          className="sr-only z-50 rounded-full bg-nuit px-4 py-2 font-bold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-3"
+        >
+          Aller au contenu
+        </button>
 
-      <header className="shell-header">
-        <div className="shell-header-inner">
-          <a href="#/" className="shell-logo" aria-label="Mazlove, accueil">
-            <span className="shell-logo-symbol" aria-hidden="true">
-              <Heart size={21} fill="currentColor" strokeWidth={1.5} />
-            </span>
-            mazlove<span className="shell-logo-dot">.</span>
-          </a>
-          <nav aria-label="Navigation principale" className="shell-desktop-nav">
-            {navItems.map(({ label, href, icon: Icon, active }) => (
-              <a
-                key={label}
-                href={href}
-                className={navLink(active)}
-                aria-current={active ? "page" : undefined}
-              >
-                <Icon size={17} aria-hidden="true" />
-                <span>{label}</span>
-              </a>
-            ))}
-          </nav>
-          <div className="shell-account">
-            {user ? (
-              <>
-                {user.role === "PROVIDER" && (
-                  <a
-                    href={
-                      user.providerId
-                        ? `#/praticien/${user.providerId}`
-                        : "#/profil-praticien"
-                    }
-                    className="shell-provider-link"
-                  >
-                    <UserRound className="h-5 w-5" aria-hidden="true" />
-                    <span className="sr-only sm:not-sr-only">
-                      {user.providerId ? "Ma fiche" : "Publier ma fiche"}
-                    </span>
-                  </a>
-                )}
-                <span
-                  className="shell-avatar"
-                  aria-label={`Compte de ${user.name || "membre"}`}
+        <header className="shell-header">
+          <div className="shell-header-inner">
+            <a href="#/" className="shell-logo" aria-label="Mazlove, accueil">
+              <span className="shell-logo-symbol" aria-hidden="true">
+                <Heart size={21} fill="currentColor" strokeWidth={1.5} />
+              </span>
+              mazlove<span className="shell-logo-dot">.</span>
+            </a>
+            <nav
+              aria-label="Navigation principale"
+              className="shell-desktop-nav"
+            >
+              {navItems.map(({ label, href, icon: Icon, active }) => (
+                <a
+                  key={label}
+                  href={href}
+                  className={navLink(active)}
+                  aria-current={active ? "page" : undefined}
                 >
-                  {(user.name || "M").slice(0, 1).toUpperCase()}
-                </span>
-                <button
-                  type="button"
-                  onClick={logout}
-                  className="shell-logout"
-                  aria-label="Se déconnecter"
-                  title="Se déconnecter"
-                >
-                  <LogOut className="h-5 w-5" aria-hidden="true" />
-                </button>
-              </>
-            ) : (
-              route.name !== "auth" && (
-                <a href={`#${loginPath(route.path)}`} className="shell-login">
-                  Se connecter <ArrowUpRight size={16} aria-hidden="true" />
+                  <Icon size={17} aria-hidden="true" />
+                  <span>{label}</span>
                 </a>
-              )
-            )}
+              ))}
+            </nav>
+            <div className="shell-account">
+              {user ? (
+                <>
+                  {user.role === "PROVIDER" && (
+                    <a
+                      href={
+                        user.providerId
+                          ? `#/praticien/${user.providerId}`
+                          : "#/profil-praticien"
+                      }
+                      className="shell-provider-link"
+                    >
+                      <UserRound className="h-5 w-5" aria-hidden="true" />
+                      <span className="sr-only sm:not-sr-only">
+                        {user.providerId ? "Ma fiche" : "Publier ma fiche"}
+                      </span>
+                    </a>
+                  )}
+                  <span
+                    className="shell-avatar"
+                    aria-label={`Compte de ${user.name || "membre"}`}
+                  >
+                    {(user.name || "M").slice(0, 1).toUpperCase()}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="shell-logout"
+                    aria-label="Se déconnecter"
+                    title="Se déconnecter"
+                  >
+                    <LogOut className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </>
+              ) : (
+                route.name !== "auth" && (
+                  <a href={`#${loginPath(route.path)}`} className="shell-login">
+                    Se connecter <ArrowUpRight size={16} aria-hidden="true" />
+                  </a>
+                )
+              )}
+            </div>
           </div>
+        </header>
+
+        <main id="contenu" tabIndex={-1} className="shell-main">
+          <Suspense fallback={<Spinner />}>{renderScreen()}</Suspense>
+        </main>
+
+        <footer className="shell-footer">
+          <div className="shell-footer-inner">
+            <span className="shell-footer-signature">
+              <Sparkles size={18} aria-hidden="true" /> Un peu plus de lien. Un
+              peu plus de vous.
+            </span>
+            <p>Séances non sexuelles. Votre consentement, à chaque instant.</p>
+          </div>
+        </footer>
+
+        <nav className="shell-mobile-nav" aria-label="Navigation mobile">
+          {navItems.map(({ label, href, icon: Icon, active }) => (
+            <a
+              key={label}
+              href={href}
+              className={cx("shell-mobile-link", active && "is-active")}
+              aria-current={active ? "page" : undefined}
+            >
+              <Icon size={21} aria-hidden="true" />
+              <span>{label}</span>
+            </a>
+          ))}
+        </nav>
+
+        <div
+          className="shell-toasts pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4"
+          role="status"
+          aria-live="polite"
+        >
+          {toasts.map((toast) => (
+            <p
+              key={toast.id}
+              className="pointer-events-auto rounded-full bg-nuit px-5 py-2.5 font-bold text-white shadow-lg"
+            >
+              {toast.message}
+            </p>
+          ))}
         </div>
-      </header>
-
-      <main id="contenu" tabIndex={-1} className="shell-main">
-        <Suspense fallback={<Spinner />}>{renderScreen()}</Suspense>
-      </main>
-
-      <footer className="shell-footer">
-        <div className="shell-footer-inner">
-          <span className="shell-footer-signature">
-            <Sparkles size={18} aria-hidden="true" /> Un peu plus de lien. Un
-            peu plus de vous.
-          </span>
-          <p>Séances non sexuelles. Votre consentement, à chaque instant.</p>
-        </div>
-      </footer>
-
-      <nav className="shell-mobile-nav" aria-label="Navigation mobile">
-        {navItems.map(({ label, href, icon: Icon, active }) => (
-          <a
-            key={label}
-            href={href}
-            className={cx("shell-mobile-link", active && "is-active")}
-            aria-current={active ? "page" : undefined}
-          >
-            <Icon size={21} aria-hidden="true" />
-            <span>{label}</span>
-          </a>
-        ))}
-      </nav>
-
-      <div
-        className="shell-toasts pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4"
-        role="status"
-        aria-live="polite"
-      >
-        {toasts.map((toast) => (
-          <p
-            key={toast.id}
-            className="pointer-events-auto rounded-full bg-nuit px-5 py-2.5 font-bold text-white shadow-lg"
-          >
-            {toast.message}
-          </p>
-        ))}
       </div>
-    </div>
+    </ProviderJourney>
   );
 }

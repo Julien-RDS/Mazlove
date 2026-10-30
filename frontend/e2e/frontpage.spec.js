@@ -40,7 +40,7 @@ async function fixtures(
         role: provider ? "PROVIDER" : "CLIENT",
         providerId: provider ? 2 : null,
       };
-    if (path === "/api/users/me/sessions") {
+    if (path === "/api/users/me/active-session") {
       if (error)
         return route.fulfill({
           status: 503,
@@ -79,6 +79,8 @@ async function fixtures(
         providerName: "Sophie",
         signalLost: false,
       };
+    if (path === "/api/users/me/active-session") data = data[0] || null;
+    if (path === "/api/users/me/provider-trip") data = null;
     return route.fulfill({ json: data });
   });
   return requests;
@@ -100,7 +102,8 @@ test("visiteur : présentation et connexion, sans charger la carte ni les donné
   expect(
     requests.some(
       (u) =>
-        u.includes("/api/users/me/sessions") || /TrackingMap-.*\.js/.test(u),
+        u.includes("/api/users/me/active-session") ||
+        /TrackingMap-.*\.js/.test(u),
     ),
   ).toBe(false);
 });

@@ -160,7 +160,10 @@ public class SessionService {
   @Transactional
   public UserDTO.SessionDTO validateArrival(Long sessionId, String code) {
     User viewer = authenticatedUserService.requireUser();
-    Session session = load(sessionId);
+    Session session =
+        sessionRepository
+            .lockById(sessionId)
+            .orElseThrow(() -> new NotFoundException("Séance introuvable."));
 
     if (!isProvider(session, viewer)) {
       throw new ForbiddenException(
@@ -195,7 +198,10 @@ public class SessionService {
   @Transactional
   public UserDTO.SessionDTO confirmEnd(Long sessionId) {
     User viewer = authenticatedUserService.requireUser();
-    Session session = load(sessionId);
+    Session session =
+        sessionRepository
+            .lockById(sessionId)
+            .orElseThrow(() -> new NotFoundException("Séance introuvable."));
     requireParticipant(session, viewer);
 
     if (session.getStatus() != Session.Status.IN_PROGRESS) {
@@ -220,7 +226,10 @@ public class SessionService {
   @Transactional
   public UserDTO.SessionDTO cancel(Long sessionId) {
     User viewer = authenticatedUserService.requireUser();
-    Session session = load(sessionId);
+    Session session =
+        sessionRepository
+            .lockById(sessionId)
+            .orElseThrow(() -> new NotFoundException("Séance introuvable."));
     requireParticipant(session, viewer);
 
     if ((session.getStatus() == Session.Status.PENDING

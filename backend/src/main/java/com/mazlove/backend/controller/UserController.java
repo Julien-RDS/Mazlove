@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,11 +18,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 /**
- * Espace personnel. @AuthenticationPrincipal reçoit le UserDetails posé par
- * JWTAuthenticationFilter : getUsername() renvoie l'email du compte connecté.
+ * Espace personnel. @AuthenticationPrincipal reçoit le UserDetails posé par JWTAuthenticationFilter
+ * : getUsername() renvoie l'email du compte connecté.
  */
 @RestController
 @RequestMapping("/api/users")
@@ -29,44 +28,52 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 public class UserController {
 
-    private final UserService userService;
+  private final UserService userService;
 
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
+  public UserController(UserService userService) {
+    this.userService = userService;
+  }
 
-    @Operation(summary = "Mon profil (inclut l'id de ma fiche praticien s'il y en a une)")
-    @GetMapping("/me")
-    public ResponseEntity<UserDTO> getProfile(@AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(userService.getProfile(userDetails.getUsername()));
-    }
+  @Operation(summary = "Mon profil (inclut l'id de ma fiche praticien s'il y en a une)")
+  @GetMapping("/me")
+  public ResponseEntity<UserDTO> getProfile(@AuthenticationPrincipal UserDetails userDetails) {
+    return ResponseEntity.ok(userService.getProfile(userDetails.getUsername()));
+  }
 
-    @Operation(summary = "Modifier mon nom et/ou mon téléphone")
-    @PutMapping("/me")
-    public ResponseEntity<UserDTO> updateProfile(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @Valid @RequestBody UserUpdateDTO dto
-    ) {
-        return ResponseEntity.ok(userService.updateProfile(userDetails.getUsername(), dto));
-    }
+  @Operation(summary = "Modifier mon nom et/ou mon téléphone")
+  @PutMapping("/me")
+  public ResponseEntity<UserDTO> updateProfile(
+      @AuthenticationPrincipal UserDetails userDetails, @Valid @RequestBody UserUpdateDTO dto) {
+    return ResponseEntity.ok(userService.updateProfile(userDetails.getUsername(), dto));
+  }
 
-    @Operation(summary = "Mes séances, côté client comme côté praticien")
-    @GetMapping("/me/sessions")
-    public ResponseEntity<List<UserDTO.SessionDTO>> getSessions(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        return ResponseEntity.ok(userService.getSessions(userDetails.getUsername(), page, size));
-    }
+  @Operation(summary = "Mes séances, côté client comme côté praticien")
+  @GetMapping("/me/sessions")
+  public ResponseEntity<List<UserDTO.SessionDTO>> getSessions(
+      @AuthenticationPrincipal UserDetails userDetails,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "10") int size) {
+    return ResponseEntity.ok(userService.getSessions(userDetails.getUsername(), page, size));
+  }
 
-    @Operation(summary = "Les avis que j'ai laissés")
-    @GetMapping("/me/reviews")
-    public ResponseEntity<List<UserDTO.ReviewDTO>> getReviews(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        return ResponseEntity.ok(userService.getReviews(userDetails.getUsername(), page, size));
-    }
+  @GetMapping("/me/active-session")
+  @Operation(summary = "Ma séance prioritaire, indépendamment de la pagination")
+  public UserDTO.SessionDTO active(@AuthenticationPrincipal UserDetails user) {
+    return userService.getActiveSession(user.getUsername(), false);
+  }
+
+  @GetMapping("/me/provider-trip")
+  @Operation(summary = "Mon trajet en cours en tant que prestataire")
+  public UserDTO.SessionDTO providerTrip(@AuthenticationPrincipal UserDetails user) {
+    return userService.getActiveSession(user.getUsername(), true);
+  }
+
+  @Operation(summary = "Les avis que j'ai laissés")
+  @GetMapping("/me/reviews")
+  public ResponseEntity<List<UserDTO.ReviewDTO>> getReviews(
+      @AuthenticationPrincipal UserDetails userDetails,
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "10") int size) {
+    return ResponseEntity.ok(userService.getReviews(userDetails.getUsername(), page, size));
+  }
 }

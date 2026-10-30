@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { trackingApi as api } from "../../lib/trackingApi";
-import { useProviderBroadcaster } from "../../hooks/useProviderBroadcaster";
+import { useProviderJourney } from "./ProviderJourney";
+import { SESSION_UPDATED_EVENT } from "../../lib/sessionTracking";
 import ConsentModal from "./ConsentModal";
 export default function ProviderConsole({
   id,
@@ -16,11 +17,8 @@ export default function ProviderConsole({
     [code, setCode] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
-  const gpsError = useProviderBroadcaster(
-    id,
-    token,
-    status === "EN_ROUTE" && !simulated,
-  );
+  const journey = useProviderJourney();
+  const gpsError = simulated ? "" : journey?.error;
   useEffect(() => {
     api("/consents", token)
       .then((x) => setConsent(x.granted))
@@ -31,6 +29,11 @@ export default function ProviderConsole({
     setError("");
     try {
       const s = await api(`/sessions/${id}/${a}`, token, "POST", body);
+      window.dispatchEvent(
+        new CustomEvent(SESSION_UPDATED_EVENT, {
+          detail: { token, session: s },
+        }),
+      );
       onChange?.(s);
     } catch (e) {
       setError(e.message);

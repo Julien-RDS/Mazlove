@@ -1,5 +1,8 @@
 # Livraison Phase 3
 
+Ce document conserve le bilan historique de phase 3. Le bilan courant est [TRACKING-PHASE4.md](TRACKING-PHASE4.md).
+
+
 Code livré : cycle de séance, migration SQL, consentement, contrôle des destinations STOMP, ingestion GPS filtrée et éphémère, routage OSRM/repli, arrivée automatique, déviation, signal perdu/récupéré, snapshots, carte animée, console prestataire, rendez-vous, partage public, contacts, SOS et liste administrateur, disponibilité approximative, simulation, scripts et collection Bruno.
 
 La simulation emploie les comptes fictifs du seed et le même service que les positions réelles. Les six scénarios incluent les rejets GPS et les interruptions. Les fixtures GeoJSON proviennent de réponses réelles d’OSRM. Le profil de développement est interdit avec `prod`.

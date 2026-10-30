@@ -2,7 +2,6 @@ package com.mazlove.backend.tracking;
 
 import com.mazlove.backend.exception.*;
 import com.mazlove.backend.models.*;
-import com.mazlove.backend.service.EmailService;
 import java.security.SecureRandom;
 import java.time.*;
 import java.util.*;
@@ -23,7 +22,7 @@ public class TripSafetyService {
   private final TrackingService tracking;
   private final TrackingStore store;
   private final SimpMessagingTemplate ws;
-  private final EmailService email;
+  private final SosMailQueue mail;
   private final StringRedisTemplate redis;
 
   @Value("${tracking.public-base-url:http://localhost:3000}")
@@ -33,7 +32,7 @@ public class TripSafetyService {
   int shareHours;
 
   public Map<String, Object> share(String who, long id) {
-    Session s = access.assertParticipant(who, id);
+    Session s = access.lockParticipant(who, id);
     if (s.getStatus() != Session.Status.EN_ROUTE)
       throw new BadRequestException("Le partage est disponible uniquement pendant le trajet.");
     byte[] bytes = new byte[32];
@@ -51,7 +50,7 @@ public class TripSafetyService {
   }
 
   public void revoke(String who, long id) {
-    access.assertParticipant(who, id);
+    access.lockParticipant(who, id);
     db.update(
         "UPDATE trip_shares SET revoked=true WHERE session_id=? AND created_by=?",
         id,
@@ -60,8 +59,13 @@ public class TripSafetyService {
 
   public Map<String, Object> publicTrip(String token, String ip) {
     String key = "public-trip:" + ip;
-    Long n = redis.opsForValue().increment(key);
-    if (n != null && n == 1) redis.expire(key, Duration.ofMinutes(1));
+    Long n =
+        redis.execute(
+            new org.springframework.data.redis.core.script.DefaultRedisScript<Long>(
+                "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],60)"
+                    + " end; return n",
+                Long.class),
+            List.of(key));
     if (n != null && n > 30)
       throw new org.springframework.web.server.ResponseStatusException(
           org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "Réessayez dans une minute.");
@@ -75,8 +79,15 @@ public class TripSafetyService {
     var rows =
         db.queryForList(
             "SELECT s.status,u.name,u.avatar FROM sessions s JOIN providers p ON p.id=s.provider_id"
-                + " JOIN users u ON u.id=p.user_id WHERE s.id=?",
+                + " JOIN users u ON u.id=p.user_id WHERE s.id=? FOR SHARE OF s",
             ids.get(0));
+    if (rows.isEmpty()
+        || Boolean.FALSE.equals(
+            db.queryForObject(
+                "SELECT EXISTS(SELECT 1 FROM trip_shares WHERE token=? AND revoked=false AND"
+                    + " expires_at>CURRENT_TIMESTAMP)",
+                Boolean.class,
+                token))) throw new NotFoundException("Ce partage a expiré ou a été arrêté.");
     var row = rows.get(0);
     if (!"EN_ROUTE".equals(row.get("status")))
       throw new NotFoundException("Ce trajet est terminé.");
@@ -103,51 +114,63 @@ public class TripSafetyService {
   }
 
   public Map<String, Object> sos(String who, long id) {
-    Session s = access.assertParticipant(who, id);
+    Session s = access.lockParticipant(who, id);
     if (!Set.of(Session.Status.EN_ROUTE, Session.Status.ARRIVED, Session.Status.IN_PROGRESS)
         .contains(s.getStatus()))
       throw new BadRequestException("L'alerte est disponible pendant le trajet et la séance.");
     User u = access.user(who);
+    var existing =
+        db.queryForList(
+            "SELECT id FROM sos_alerts WHERE session_id=? AND raised_by=? AND status='OPEN' ORDER"
+                + " BY id DESC LIMIT 1",
+            Long.class,
+            id,
+            u.getId());
+    if (!existing.isEmpty()) return mail.delivery(existing.get(0));
     var last = store.last(id);
-    Double lat = last == null ? null : last.point().lat(),
-        lng = last == null ? null : last.point().lng();
-    db.update(
-        "INSERT INTO sos_alerts(session_id,raised_by,latitude,longitude) VALUES (?,?,?,?)",
-        id,
-        u.getId(),
-        lat,
-        lng);
+    Long alert =
+        db.queryForObject(
+            "INSERT INTO sos_alerts(session_id,raised_by,latitude,longitude) VALUES (?,?,?,?)"
+                + " RETURNING id",
+            Long.class,
+            id,
+            u.getId(),
+            last == null ? null : last.point().lat(),
+            last == null ? null : last.point().lng());
     tracking.event(s, "SOS", "Une alerte a été déclenchée.");
-    ws.convertAndSend(
-        "/topic/admin.alerts", Map.of("sessionId", id, "message", "Nouvelle alerte SOS"));
+    AfterCommit.run(
+        () ->
+            ws.convertAndSend(
+                "/topic/admin.alerts", Map.of("sessionId", id, "message", "Nouvelle alerte SOS")));
     String link =
         s.getStatus() == Session.Status.EN_ROUTE
             ? share(who, id).get("url").toString()
             : publicBase;
-    int sent = 0, failed = 0;
     for (String to :
         db.queryForList(
-            "SELECT email FROM trusted_contacts WHERE user_id=? AND email IS NOT NULL",
+            "SELECT DISTINCT lower(email) FROM trusted_contacts WHERE user_id=? AND email IS NOT"
+                + " NULL AND trim(email)<>''",
             String.class,
             u.getId()))
-      try {
-        email.sendText(
-            to,
-            "Alerte SOS Mazlove",
-            u.getName()
-                + " a déclenché une alerte. Contactez cette personne. Suivi : "
-                + link
-                + ". En cas de danger immédiat : 17 ou 112. Mazlove ne contacte pas les secours.");
-        sent++;
-      } catch (org.springframework.mail.MailException e) {
-        failed++;
-      }
-    return Map.of(
-        "message",
-        "Alerte enregistrée auprès de l'équipe. En cas de danger, appelez le 17 ou le 112.",
-        "emailsSent",
-        sent,
-        "emailsFailed",
-        failed);
+      mail.enqueue(
+          alert,
+          to,
+          u.getName()
+              + " a déclenché une alerte. Contactez cette personne. Suivi : "
+              + link
+              + ". En cas de danger immédiat : 17 ou 112. Mazlove ne contacte pas les secours.");
+    return mail.delivery(alert);
+  }
+
+  public Map<String, Object> delivery(String who, long session, long alert) {
+    access.assertParticipant(who, session);
+    if (!Boolean.TRUE.equals(
+        db.queryForObject(
+            "SELECT EXISTS(SELECT 1 FROM sos_alerts WHERE id=? AND session_id=? AND raised_by=?)",
+            Boolean.class,
+            alert,
+            session,
+            access.user(who).getId()))) throw new NotFoundException("Alerte introuvable.");
+    return mail.delivery(alert);
   }
 }

@@ -31,10 +31,11 @@ class TrackingJobsTest {
   void signalLostIsPublishedOnlyOnce() {
     Session s = new Session();
     s.setId(1L);
+    s.setStatus(com.mazlove.backend.models.Session.Status.EN_ROUTE);
     s.setEnRouteAt(LocalDateTime.now().minusMinutes(2));
-    when(db.queryForList("SELECT id FROM sessions WHERE status='EN_ROUTE'", Long.class))
+    when(db.queryForList("SELECT id FROM sessions WHERE status='EN_ROUTE' ORDER BY id", Long.class))
         .thenReturn(List.of(1L));
-    when(sessions.findById(1L)).thenReturn(Optional.of(s));
+    when(sessions.lockById(1L)).thenReturn(Optional.of(s));
     when(store.get("lost", 1)).thenReturn(null, "1");
     jobs.signal();
     jobs.signal();

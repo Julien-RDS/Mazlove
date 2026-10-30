@@ -45,8 +45,18 @@ public class TrackingStore {
       fields.put("seq", Long.toString(p.point().seq()));
       fields.put("eta", String.valueOf(p.etaSeconds()));
       fields.put("dist", String.valueOf(p.distanceMeters()));
-      redis.opsForHash().putAll("track:last:" + id, fields);
-      redis.expire("track:last:" + id, Duration.ofSeconds(120));
+      List<String> args = new ArrayList<>();
+      fields.forEach(
+          (k, v) -> {
+            args.add(k);
+            args.add(v);
+          });
+      redis.execute(
+          new DefaultRedisScript<Long>(
+              "redis.call('HSET',KEYS[1],unpack(ARGV)); redis.call('EXPIRE',KEYS[1],120); return 1",
+              Long.class),
+          List.of("track:last:" + id),
+          args.toArray());
     } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
       throw new IllegalStateException(e);
     }

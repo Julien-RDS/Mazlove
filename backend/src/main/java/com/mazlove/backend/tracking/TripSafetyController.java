@@ -21,6 +21,8 @@ public class TripSafetyController {
   private final SessionAccessPolicy access;
   private final JdbcTemplate db;
   private final TrackingStore store;
+  private final com.mazlove.backend.config.AuthenticatedSockets sockets;
+  private final org.springframework.data.redis.core.StringRedisTemplate redis;
 
   @PostMapping("/api/sessions/{id}/share")
   @Operation(summary = "Créer un lien de suivi temporaire")
@@ -44,6 +46,11 @@ public class TripSafetyController {
   @Operation(summary = "Alerter ses proches et l'équipe, sans appeler les secours")
   public Object sos(Principal p, @PathVariable long id) {
     return safety.sos(p.getName(), id);
+  }
+
+  @GetMapping("/api/sessions/{id}/sos/{alert}/delivery")
+  public Object delivery(Principal p, @PathVariable long id, @PathVariable long alert) {
+    return safety.delivery(p.getName(), id, alert);
   }
 
   public record Contact(
@@ -91,8 +98,9 @@ public class TripSafetyController {
   public Object alerts(Principal p) {
     admin(p);
     return db.queryForList(
-        "SELECT a.*,u.name FROM sos_alerts a JOIN users u ON u.id=a.raised_by WHERE a.status='OPEN'"
-            + " ORDER BY created_at DESC");
+        "SELECT a.*,u.name,(SELECT count(*) FROM sos_mail_queue q WHERE q.alert_id=a.id AND"
+            + " q.status IN ('FAILED','UNKNOWN')) AS email_problems FROM sos_alerts a JOIN users u"
+            + " ON u.id=a.raised_by WHERE a.status='OPEN' ORDER BY created_at DESC");
   }
 
   @PatchMapping("/api/admin/sos/{id}/resolve")
@@ -110,10 +118,20 @@ public class TripSafetyController {
     for (Long sid :
         db.queryForList(
             "SELECT s.id FROM sessions s JOIN providers p ON p.id=s.provider_id WHERE s.client_id=?"
-                + " OR p.user_id=?",
+                + " OR p.user_id=? ORDER BY s.id FOR UPDATE OF s",
             Long.class,
             id,
             id)) store.clear(sid);
+    var providers = db.queryForList("SELECT id FROM providers WHERE user_id=?", Long.class, id);
     db.update("DELETE FROM users WHERE id=?", id);
+    String email = p.getName();
+    AfterCommit.run(
+        () -> {
+          sockets.revokeUser(email);
+          for (Long provider : providers) {
+            redis.opsForGeo().remove("geo:online", provider.toString());
+            redis.delete("online:" + provider);
+          }
+        });
   }
 }

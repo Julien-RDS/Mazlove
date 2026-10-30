@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import { trackingApi } from "../lib/trackingApi";
 import { startVisiblePolling } from "../lib/visiblePolling";
-import {
-  selectTrackedSession,
-  SESSION_UPDATED_EVENT,
-} from "../lib/sessionTracking";
+import { SESSION_UPDATED_EVENT } from "../lib/sessionTracking";
 export function useHomeSession(token) {
   const [state, setState] = useState({
     token: null,
@@ -18,8 +15,8 @@ export function useHomeSession(token) {
     setState({ token, session: null, loading: true, error: "" });
     const polling = startVisiblePolling(
       async (signal) => {
-        const sessions = await trackingApi(
-          "/users/me/sessions?size=50",
+        const session = await trackingApi(
+          "/users/me/active-session",
           token,
           "GET",
           undefined,
@@ -28,7 +25,7 @@ export function useHomeSession(token) {
         if (alive)
           setState({
             token,
-            session: selectTrackedSession(sessions),
+            session,
             loading: false,
             error: "",
           });

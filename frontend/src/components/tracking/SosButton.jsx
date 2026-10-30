@@ -1,10 +1,46 @@
 import React, { useState, useRef, useEffect } from "react";
 import { trackingApi as api } from "../../lib/trackingApi";
+import { startVisiblePolling } from "../../lib/visiblePolling";
+const deliveryText = (r) =>
+  `${r.message} Emails envoyés : ${r.emailsSent}, en attente : ${r.emailsQueued}, échecs : ${r.emailsFailed}, envoi incertain : ${r.emailsUncertain}. En cas d’échec ou d’incertitude, contactez directement vos proches.`;
 export default function SosButton({ id, token }) {
   const [armed, setArmed] = useState(false),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
+  const [alert, setAlert] = useState(null);
   const timer = useRef();
+  useEffect(() => {
+    if (!alert) return;
+    let alive = true;
+    const poll = startVisiblePolling(
+      async (signal) => {
+        const r = await api(
+          `/sessions/${id}/sos/${alert}/delivery`,
+          token,
+          "GET",
+          undefined,
+          { signal },
+        );
+        if (alive) {
+          setMessage(deliveryText(r));
+          if (!r.emailsQueued) setAlert(null);
+        }
+      },
+      5000,
+      {
+        onError: () => {
+          if (alive)
+            setMessage(
+              "Alerte enregistrée. Le résultat des emails est indisponible : contactez directement vos proches.",
+            );
+        },
+      },
+    );
+    return () => {
+      alive = false;
+      poll.stop();
+    };
+  }, [alert, id, token]);
   const stop = () => clearTimeout(timer.current);
   useEffect(() => stop, []);
   const send = async () => {
@@ -12,9 +48,8 @@ export default function SosButton({ id, token }) {
     setBusy(true);
     try {
       const r = await api(`/sessions/${id}/sos`, token, "POST");
-      setMessage(
-        `${r.message} Emails envoyés : ${r.emailsSent}, échecs : ${r.emailsFailed}.`,
-      );
+      setMessage(deliveryText(r));
+      if (r.emailsQueued) setAlert(r.alertId);
     } catch (e) {
       setMessage(e.message);
     } finally {

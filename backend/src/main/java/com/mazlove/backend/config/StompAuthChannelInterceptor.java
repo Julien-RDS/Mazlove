@@ -18,6 +18,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
   private final JWTService jwt;
   private final UserDetailsService users;
   private final SessionAccessPolicy access;
+  private final AuthenticatedSockets sockets;
   private static final Pattern PRIVATE =
       Pattern.compile("/topic/(?:tracking\\.(\\d+)|session\\.(\\d+)\\.status)");
 
@@ -25,15 +26,22 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
   public Message<?> preSend(Message<?> message, MessageChannel channel) {
     StompHeaderAccessor a = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
     if (a == null || a.getCommand() == null) return message;
+    if (!a.isMutable()) a = StompHeaderAccessor.wrap(message);
+    if (a.getCommand() != StompCommand.CONNECT
+        && a.getCommand() != StompCommand.DISCONNECT
+        && !sockets.valid(a.getSessionId()))
+      throw new MessagingException("Session expirée. Reconnectez-vous.");
     switch (a.getCommand()) {
       case CONNECT -> {
         String h = a.getFirstNativeHeader("Authorization");
+        a.removeNativeHeader("Authorization");
         if (h == null || !h.startsWith("Bearer "))
           throw new MessagingException("Connexion authentifiée requise.");
         String email =
             jwt.validateAndGetSubject(h.substring(7))
                 .orElseThrow(() -> new MessagingException("Jeton invalide ou expiré."));
         var u = users.loadUserByUsername(email);
+        sockets.authenticate(a.getSessionId(), email, jwt.expiresAt(h.substring(7)));
         a.setUser(new UsernamePasswordAuthenticationToken(u, null, u.getAuthorities()));
       }
       case SUBSCRIBE -> {
@@ -62,6 +70,6 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
       }
       default -> {}
     }
-    return message;
+    return MessageBuilder.createMessage(message.getPayload(), a.getMessageHeaders());
   }
 }

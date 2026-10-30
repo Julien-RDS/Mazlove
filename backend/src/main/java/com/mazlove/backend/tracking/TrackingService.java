@@ -22,6 +22,7 @@ public class TrackingService {
   private final SessionLifecycle lifecycle;
   private final SimpMessagingTemplate ws;
   private final JdbcTemplate db;
+  private final TrackingPublisher publisher;
 
   public record PositionUpdate(
       double lat,
@@ -45,7 +46,7 @@ public class TrackingService {
       boolean signalLost) {}
 
   public Snapshot snapshot(String email, long id) {
-    Session s = access.assertParticipant(email, id);
+    Session s = access.lockParticipant(email, id);
     return snapshot(s);
   }
 
@@ -86,7 +87,7 @@ public class TrackingService {
 
   public void ingest(String email, long id, PositionDTO p) {
     db.queryForList("SELECT id FROM sessions WHERE id=? FOR UPDATE", Long.class, id);
-    Session s = access.assertProvider(email, id);
+    Session s = access.lockProvider(email, id);
     if (s.getStatus() != Session.Status.EN_ROUTE) return;
     long now = System.currentTimeMillis();
     if (p == null
@@ -167,7 +168,8 @@ public class TrackingService {
       lifecycle.move(s, Action.ARRIVE, Actor.SYSTEM);
       return;
     }
-    ws.convertAndSend("/topic/tracking." + id, update(saved, s));
+    PositionUpdate payload = update(saved, s);
+    AfterCommit.run(() -> publisher.live(id, payload));
   }
 
   public void event(Session s, String type, String message) {
@@ -176,12 +178,14 @@ public class TrackingService {
         s.getId(),
         type,
         message);
-    ws.convertAndSend(
-        "/topic/tracking." + s.getId(),
-        Map.of("event", type, "message", message, "at", System.currentTimeMillis()));
-    ws.convertAndSendToUser(
-        s.getClient().getEmail(),
-        "/queue/notifications",
-        Map.of("sessionId", s.getId(), "message", message));
+    long id = s.getId();
+    String email = s.getClient().getEmail();
+    AfterCommit.run(
+        () -> {
+          publisher.live(
+              id, Map.of("event", type, "message", message, "at", System.currentTimeMillis()));
+          ws.convertAndSendToUser(
+              email, "/queue/notifications", Map.of("sessionId", id, "message", message));
+        });
   }
 }

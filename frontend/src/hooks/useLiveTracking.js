@@ -48,12 +48,14 @@ export function useLiveTracking(id, token) {
     let alive = true,
       eventVersion = 0,
       terminal = false,
+      timer,
       connectedOnce = false,
       client,
       polling;
     set({ key, status: null, pos: null, route: null, connected: false });
     const stopTerminal = () => {
       terminal = true;
+      clearInterval(timer);
       polling?.stop();
       client?.deactivate();
     };
@@ -109,15 +111,54 @@ export function useLiveTracking(id, token) {
         if (connectedOnce) polling.refresh();
         connectedOnce = true;
       },
-      onWebSocketClose: () => alive && set((p) => ({ ...p, connected: false })),
-      onStompError: () =>
-        alive && set((p) => ({ ...p, error: "Connexion de suivi refusée." })),
+      onWebSocketClose: (event) => {
+        if (!alive) return;
+        if (event.code === 1008) {
+          stopTerminal();
+          set({
+            key,
+            status: null,
+            pos: null,
+            route: null,
+            connected: false,
+            authExpired: true,
+            error: "Session expirée. Reconnectez-vous.",
+          });
+        } else set((p) => ({ ...p, connected: false }));
+      },
+      onStompError: () => {
+        if (!alive) return;
+        stopTerminal();
+        set({
+          key,
+          status: null,
+          pos: null,
+          route: null,
+          connected: false,
+          authExpired: true,
+          error: "Connexion de suivi refusée. Reconnectez-vous.",
+        });
+      },
     });
     polling = startVisiblePolling(snapshot, 30000, {
-      onError: (e) => alive && set((p) => ({ ...p, error: e.message })),
+      onError: (e) => {
+        if (!alive) return;
+        if (e.status === 401 || e.status === 403) {
+          stopTerminal();
+          set({
+            key,
+            status: null,
+            pos: null,
+            route: null,
+            connected: false,
+            authExpired: true,
+            error: e.message,
+          });
+        } else set((p) => ({ ...p, error: e.message }));
+      },
     });
     client.activate();
-    const timer = setInterval(() => {
+    timer = setInterval(() => {
       if (!alive || document.hidden) return;
       set((p) => {
         const stale = !!p.pos && Date.now() - p.pos.ts > 15000;

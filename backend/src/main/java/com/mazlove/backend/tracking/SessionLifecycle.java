@@ -37,6 +37,9 @@ public class SessionLifecycle {
       default -> {}
     }
     sessions.saveAndFlush(s);
+    if (java.util.Set.of(Session.Status.ARRIVED, Session.Status.DONE, Session.Status.CANCELLED)
+        .contains(s.getStatus()))
+      db.update("UPDATE trip_shares SET revoked=true WHERE session_id=?", s.getId());
     String type =
         switch (action) {
           case DEPART -> "EN_ROUTE_STARTED";

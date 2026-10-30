@@ -90,7 +90,7 @@ public class SimulatorService {
   private void step(long id, Run r) {
     tx.executeWithoutResult(
         t -> {
-          Session s = access.assertProvider(r.email, id);
+          Session s = access.lockProvider(r.email, id);
           if (s.getStatus() != Session.Status.EN_ROUTE) {
             stop(id);
             return;

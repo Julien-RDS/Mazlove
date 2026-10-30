@@ -18,6 +18,8 @@ Les rafraîchissements REST n’empiètent plus les uns sur les autres, se mette
 
 Commandes : `npm test`, `npm run build`, `npm run test:frontpage` depuis `frontend/`. Pour le dernier : installer Chromium avec `npx playwright install chromium`, ou fournir `PLAYWRIGHT_CHROMIUM_EXECUTABLE` vers une installation existante. Aucun Docker n’est nécessaire ; le test lance puis ferme son serveur frontend.
 
-## Suite prioritaire
+## Phase 4
 
-La séance de l’accueil est sélectionnée dans une page de 50 résultats : prévoir une requête serveur dédiée pour les gros historiques. Le GPS reste attaché à la console prestataire : traiter sa continuité lors de la navigation dans l’application. Valider ensuite la chaîne réelle PostgreSQL/Redis/STOMP/SMTP et les limites de production. Le prompt complet est dans [NEXT-PROMPT.md](NEXT-PROMPT.md).
+L’accueil utilise maintenant `/api/users/me/active-session` : la sélection n’est plus limitée à 50 résultats. Le GPS est géré au-dessus des écrans et continue pendant la navigation d’une séance EN_ROUTE. La disponibilité facultative reste indépendante ; ouvrir l’accueil d’un compte sans trajet actif ne demande pas le GPS.
+
+Voir [TRACKING-PHASE4.md](TRACKING-PHASE4.md) pour les nouvelles mesures, les tests et leurs limites, [PRODUCTION.md](PRODUCTION.md) pour la migration, et [NEXT-PROMPT.md](NEXT-PROMPT.md) pour la suite.

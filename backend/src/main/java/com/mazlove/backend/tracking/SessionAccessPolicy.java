@@ -13,6 +13,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class SessionAccessPolicy {
   private final SessionRepository sessions;
   private final UserRepository users;
+  @jakarta.persistence.PersistenceContext private jakarta.persistence.EntityManager entityManager;
+
+  @Transactional
+  public Session lockParticipant(String email, Long id) {
+    Session s =
+        sessions.lockById(id).orElseThrow(() -> new NotFoundException("Séance introuvable."));
+    if (entityManager != null)
+      entityManager.refresh(s, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+    return assertParticipant(email, id);
+  }
 
   public User user(String email) {
     return users.findByEmail(email).orElseThrow(() -> new ForbiddenException("Compte inconnu."));
@@ -28,8 +38,9 @@ public class SessionAccessPolicy {
     return s;
   }
 
+  @Transactional
   public Session lockProvider(String email, Long id) {
-    sessions.lockById(id).orElseThrow(() -> new NotFoundException("Séance introuvable."));
+    lockParticipant(email, id);
     return assertProvider(email, id);
   }
 
