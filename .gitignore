@@ -2,9 +2,8 @@
 .env
 backend/.env
 
-# Maven / Java
-backend/target/
-target/
+# Maven / Java (tous modules confondus)
+**/target/
 *.class
 backend/logs/
 logs/
@@ -14,12 +13,31 @@ logs/
 frontend/node_modules/
 frontend/dist/
 frontend/.smoke/
+frontend/.vite/
+frontend/coverage/
+.eslintcache
+.nyc_output/
 
-# IDE et système
+# Données runtime (volume Docker, jamais versionné)
+uploads/
+
+# IDE
 .idea/
 *.iml
+*.iws
+*.ipr
 .vscode/
+.classpath
+.project
+.settings/
+*.launch
+
+# Sauvegardes et fichiers système
+*.bak
+*~
+*.backup
 .DS_Store
+Thumbs.db
 
 /osrm-data/
 /frontend/test-results/
