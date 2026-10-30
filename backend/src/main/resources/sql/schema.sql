@@ -133,13 +133,12 @@ CREATE INDEX IF NOT EXISTS idx_reviews_user               ON reviews (user_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_provider           ON reviews (provider_id, created_at DESC);
 
 -- Phase 3. Existing ACCEPTED sessions meant IN_PROGRESS: migrate ONCE before adding milestones.
-DO $$ BEGIN
- IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='sessions' AND column_name='started_at') THEN
-  ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_status_check;
-  UPDATE sessions SET status='IN_PROGRESS' WHERE status='ACCEPTED';
- END IF;
-END $$;
+-- Plain statements are required by Spring ScriptUtils (which splits on semicolons).
 ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_status_check;
+UPDATE sessions SET status='IN_PROGRESS'
+ WHERE status='ACCEPTED'
+ AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_schema=current_schema() AND table_name='sessions' AND column_name='started_at');
 ALTER TABLE sessions ADD CONSTRAINT sessions_status_check CHECK(status IN ('PENDING','ACCEPTED','EN_ROUTE','ARRIVED','IN_PROGRESS','DONE','CANCELLED'));
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS meeting_latitude DOUBLE PRECISION;
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS meeting_longitude DOUBLE PRECISION;

@@ -8,14 +8,14 @@ Conserver le commit déployé, son JAR, son frontend et sa configuration avant d
 
 ```sh
 cd backend
-mvn test package
+mvn clean test package
 cd ../frontend
 npm ci
 npm test
 VITE_DEMO=false npm run build
 ```
 
-Le JAR est `backend/target/backend-0.1.0.jar` ; les fichiers web sont dans `frontend/dist`. Vérifier le nom réel du JAR produit. Ne pas republier les anciens fichiers `target`/`node_modules` suivis historiquement par Git : reconstruire les artefacts. Le build production exclut le module de démonstration. La configuration Compose principale reste une configuration de **développement** (seed, MailHog, profil dev et démo frontend) : ne pas l’utiliser telle quelle en production.
+Le JAR est `backend/target/backend-0.1.0.jar` ; les fichiers web sont dans `frontend/dist`. Vérifier le nom réel du JAR produit. Les fichiers `target`/`node_modules` ont été retirés du suivi Git : reconstruire les artefacts. Le build production exclut le module de démonstration. La configuration Compose principale reste une configuration de **développement** (seed, MailHog, profil dev et démo frontend) : ne pas l’utiliser telle quelle en production.
 
 Fournir au processus backend, par le gestionnaire de secrets/service existant :
 
@@ -49,7 +49,7 @@ Démarrer le JAR construit avec le gestionnaire de service existant, l’environ
 
 Le quota public est de 30 requêtes/minute par **adresse vue par le backend**. Derrière un proxy, configurer la transmission de l’adresse réelle avec une liste explicite de proxies de confiance. Le Nginx fourni transmet `$remote_addr` en `X-Forwarded-For`. Si un autre proxy TLS le précède, configurer `set_real_ip_from` uniquement pour ce proxy et `real_ip_header` ; côté Tomcat, activer `server.forward-headers-strategy=native` et restreindre `server.tomcat.remoteip.internal-proxies` aux adresses effectives de confiance. Ne pas accepter un `X-Forwarded-For` arbitraire du client. Sans ce réglage, plusieurs utilisateurs derrière le même proxy partagent le quota.
 
-Ne pas journaliser les URL `/t/*`, `/api/public/trips/*`, les en-têtes Authorization, les corps GPS ni les requêtes SQL avec paramètres. La configuration Nginx livrée désactive les logs des deux chemins de partage et utilise `Referrer-Policy: no-referrer` ; reprendre ces règles dans le proxy TLS/CDN éventuel. Aucun test `nginx -t` n’a été exécuté ici : valider la configuration sur le serveur avant rechargement.
+Ne pas journaliser les URL `/t/*`, `/api/public/trips/*`, les en-têtes Authorization, les corps GPS ni les requêtes SQL avec paramètres. La configuration Nginx livrée désactive les logs des deux chemins de partage et utilise `Referrer-Policy: no-referrer` ; reprendre ces règles dans le proxy TLS/CDN éventuel. `nginx -t` et les réponses HTTP ont été vérifiés dans le conteneur de développement (voir [CLEANUP-DELIVERY.md](CLEANUP-DELIVERY.md)). Valider aussi la configuration du serveur cible avant rechargement.
 
 Vérifications après démarrage : health 200 ; `/api/dev/login-as` absent ; frontend sans lien/module de démo ; WebSocket accepté depuis l’origine autorisée et refusé depuis une autre ; login, départ et retour à l’accueil en HTTPS ; arrivée qui efface la position ; partage révoqué ; SOS réel vers un contact de test et visibilité administrateur. Vérifier un navigateur mobile au premier plan, puis ses limites lors d’une mise en veille. Un résultat SMTP incertain impose une vérification humaine ; l’application ne contacte pas les secours.
 
