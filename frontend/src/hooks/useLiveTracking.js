@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { trackingApi } from "../lib/trackingApi";
 import { wsClient } from "../lib/ws";
+import { startVisiblePolling } from "../lib/visiblePolling";
 export function applyUpdate(s, u) {
   if (u.event)
     return {
@@ -35,59 +36,102 @@ export function applyUpdate(s, u) {
 }
 export function useLiveTracking(id, token) {
   const [state, set] = useState({
+    key: null,
     status: null,
     pos: null,
     route: null,
     connected: false,
   });
+  const key = `${token}:${id}`;
   useEffect(() => {
     if (!id || !token) return;
     let alive = true,
-      version = 0;
-    const snapshot = async () => {
-      const current = ++version;
-      try {
-        const s = await trackingApi(`/tracking/${id}/snapshot`, token);
-        if (alive && current === version)
-          set((p) => ({ ...p, ...s, error: null }));
-      } catch (e) {
-        if (alive) set((p) => ({ ...p, error: e.message }));
-      }
+      eventVersion = 0,
+      terminal = false,
+      connectedOnce = false,
+      client,
+      polling;
+    set({ key, status: null, pos: null, route: null, connected: false });
+    const stopTerminal = () => {
+      terminal = true;
+      polling?.stop();
+      client?.deactivate();
     };
-    const client = wsClient(token, {
+    const snapshot = async (signal) => {
+      const version = eventVersion;
+      const snap = await trackingApi(
+        `/tracking/${id}/snapshot`,
+        token,
+        "GET",
+        undefined,
+        { signal },
+      );
+      if (!alive || signal.aborted) return;
+      if (version !== eventVersion) {
+        polling?.refresh();
+        return;
+      }
+      set((previous) => ({
+        ...previous,
+        ...snap,
+        key,
+        error: null,
+        pos:
+          snap.pos && previous.pos?.ts > snap.pos.ts ? previous.pos : snap.pos,
+      }));
+      if (["DONE", "CANCELLED"].includes(snap.status)) stopTerminal();
+    };
+    client = wsClient(token, {
       onConnect: () => {
-        if (!alive) return;
+        if (!alive || terminal) {
+          client.deactivate();
+          return;
+        }
         set((p) => ({ ...p, connected: true }));
         client.subscribe(`/topic/tracking.${id}`, (m) => {
+          if (!alive) return;
           try {
             const u = JSON.parse(m.body);
             set((p) => applyUpdate(p, u));
           } catch {}
         });
         client.subscribe(`/topic/session.${id}.status`, (m) => {
-          version++;
-          set((p) => applyUpdate(p, JSON.parse(m.body)));
-          snapshot();
+          if (!alive) return;
+          try {
+            const u = JSON.parse(m.body);
+            eventVersion++;
+            set((p) => applyUpdate(p, u));
+            if (["DONE", "CANCELLED"].includes(u.status)) stopTerminal();
+            else polling.refresh();
+          } catch {}
         });
-        snapshot();
+        // Initial snapshot is already in flight. A reconnect must always fetch a fresh snapshot.
+        if (connectedOnce) polling.refresh();
+        connectedOnce = true;
       },
       onWebSocketClose: () => alive && set((p) => ({ ...p, connected: false })),
       onStompError: () =>
         alive && set((p) => ({ ...p, error: "Connexion de suivi refusée." })),
     });
-    snapshot();
+    polling = startVisiblePolling(snapshot, 30000, {
+      onError: (e) => alive && set((p) => ({ ...p, error: e.message })),
+    });
     client.activate();
     const timer = setInterval(() => {
-      if (alive)
-        set((p) => ({ ...p, stale: !!p.pos && Date.now() - p.pos.ts > 15000 }));
+      if (!alive || document.hidden) return;
+      set((p) => {
+        const stale = !!p.pos && Date.now() - p.pos.ts > 15000;
+        return stale === p.stale ? p : { ...p, stale };
+      });
     }, 3000);
-    const refresh = setInterval(snapshot, 30000);
     return () => {
       alive = false;
       clearInterval(timer);
-      clearInterval(refresh);
+      polling.stop();
       client.deactivate();
     };
-  }, [id, token]);
-  return state;
+  }, [id, token, key]);
+  return state.key === key
+    ? state
+    : { status: null, pos: null, route: null, connected: false };
 }

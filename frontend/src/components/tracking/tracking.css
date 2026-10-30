@@ -95,3 +95,20 @@
     height: 280px;
   }
 }
+
+.online-provider-marker {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 3px solid white;
+  border-radius: 50%;
+  background: #675c8a;
+  color: white;
+  font-size: 25px;
+  box-shadow: 0 3px 10px #30283d33;
+}
+.online-provider-marker:focus-visible {
+  outline: 3px solid #ef743d;
+  outline-offset: 3px;
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { trackingApi as api } from "../../lib/trackingApi";
-import TrackingMap from "./TrackingMap";
+import TrackingMap from "./LazyTrackingMap";
 export default function MeetingPointPicker({ value, onChange, token }) {
   const [query, set] = useState(""),
     [results, R] = useState([]),

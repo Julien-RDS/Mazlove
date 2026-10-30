@@ -1,4 +1,4 @@
-import OnlineProviders from "./tracking/OnlineProviders";
+import HomeTrackingSection from "./tracking/HomeTrackingSection";
 import { tokenStore } from "../api";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -205,7 +205,6 @@ export default function DiscoverScreen({ query, position, user, notify }) {
     });
   return (
     <div className="discovery">
-      <OnlineProviders token={tokenStore.get()} />
       <div className="discovery-topline">
         <span>
           <span className="location-dot" /> À votre rythme. Près de vous.
@@ -231,6 +230,25 @@ export default function DiscoverScreen({ query, position, user, notify }) {
             </p>
             <button className="pill-button dark" onClick={scrollToResults}>
               Trouver ma parenthèse <ArrowUpRight size={20} />
+            </button>
+            <button
+              type="button"
+              className="home-hero-follow"
+              onClick={() => {
+                const section = document.getElementById("home-tracking-title");
+                section?.scrollIntoView({
+                  behavior: window.matchMedia(
+                    "(prefers-reduced-motion: reduce)",
+                  ).matches
+                    ? "auto"
+                    : "smooth",
+                  block: "center",
+                });
+                section?.focus({ preventScroll: true });
+              }}
+            >
+              Retrouver le suivi de ma séance{" "}
+              <ArrowRight size={15} aria-hidden="true" />
             </button>
             <div className="hero-assurance">
               <ShieldCheck size={17} />
@@ -258,6 +276,14 @@ export default function DiscoverScreen({ query, position, user, notify }) {
             </span>
           </div>
         </section>
+      )}
+
+      {!favoritesOnly && (
+        <HomeTrackingSection
+          user={user}
+          token={user ? tokenStore.get() : null}
+          position={position}
+        />
       )}
 
       <div className="discovery-layout">

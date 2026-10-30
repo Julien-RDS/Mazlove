@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { trackingApi as api } from "../../lib/trackingApi";
-import TrackingMap from "./TrackingMap";
+import TrackingMap from "./LazyTrackingMap";
 import TripStatusStepper from "./TripStatusStepper";
 export default function PublicTripPage({ token }) {
   const [data, set] = useState(null),

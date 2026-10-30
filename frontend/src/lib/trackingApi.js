@@ -1,20 +1,34 @@
-export async function trackingApi(path, token, method = "GET", body) {
-  const r = await fetch(`${import.meta.env.VITE_API_URL || ""}/api${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const data = await r.text();
-  let value;
+export async function trackingApi(
+  path,
+  token,
+  method = "GET",
+  body,
+  options = {},
+) {
+  let response;
   try {
-    value = data ? JSON.parse(data) : null;
-  } catch {
-    value = null;
+    response = await fetch(`${import.meta.env.VITE_API_URL || ""}/api${path}`, {
+      method,
+      signal: options.signal,
+      headers: {
+        Accept: "application/json",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (error) {
+    if (error.name === "AbortError") throw error;
+    throw new Error(
+      "Le serveur ne répond pas. Vérifiez votre connexion puis réessayez.",
+    );
   }
-  if (!r.ok)
+  const text = await response.text();
+  let value = null;
+  try {
+    value = text ? JSON.parse(text) : null;
+  } catch {}
+  if (!response.ok)
     throw new Error(value?.message || "Action indisponible. Réessayez.");
   return value;
 }

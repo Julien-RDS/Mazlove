@@ -1,16 +1,20 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { memo, useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./tracking.css";
 import { splitRoute, heading } from "../../lib/geo";
 import { animateMarker } from "../../lib/animateMarker";
-export default function TrackingMap({
+const EMPTY_PROVIDERS = [];
+const EMPTY_DATA = { type: "FeatureCollection", features: [] };
+function TrackingMap({
   pos,
   meetingPoint,
   route,
   stale,
   onPick,
-  providers = [],
+  providers = EMPTY_PROVIDERS,
+  center,
+  ariaLabel = "Carte du suivi de trajet",
 }) {
   const host = useRef(),
     map = useRef(),
@@ -19,31 +23,39 @@ export default function TrackingMap({
     last = useRef(),
     cancel = useRef(),
     follow = useRef(true),
-    pick = useRef(onPick);
+    pick = useRef(onPick),
+    nearby = useRef(new Map()),
+    initialCenter = useRef(center);
   pick.current = onPick;
   const [moved, setMoved] = useState(false),
     [ready, setReady] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
-    let m;
+    let m,
+      resize,
+      disposed = false;
     try {
+      const c = initialCenter.current;
       m = new maplibregl.Map({
         container: host.current,
         style:
           import.meta.env.VITE_MAP_STYLE_URL ||
           "https://tiles.openfreemap.org/styles/liberty",
-        center: [2.347, 48.8584],
+        center: c ? [c.lng, c.lat] : [2.347, 48.8584],
         zoom: 12,
         attributionControl: true,
       });
       map.current = m;
       m.addControl(new maplibregl.NavigationControl());
-      m.on("load", () => setReady(true));
-      m.on("error", () =>
-        setError(
-          "Fond de carte indisponible ; le suivi textuel reste accessible.",
-        ),
-      );
+      m.on("load", () => {
+        if (!disposed) setReady(true);
+      });
+      m.on("error", () => {
+        if (!disposed)
+          setError(
+            "Fond de carte indisponible ; le suivi textuel reste accessible.",
+          );
+      });
       m.on("dragstart", () => {
         follow.current = false;
         setMoved(true);
@@ -55,11 +67,19 @@ export default function TrackingMap({
           label: "Point choisi sur la carte",
         }),
       );
+      if (typeof ResizeObserver !== "undefined") {
+        resize = new ResizeObserver(() => m.resize());
+        resize.observe(host.current);
+      }
     } catch {
       setError("Carte indisponible sur ce navigateur.");
     }
     return () => {
+      disposed = true;
+      resize?.disconnect();
       cancel.current?.();
+      nearby.current.forEach((m) => m.remove());
+      nearby.current.clear();
       m?.remove();
       map.current = null;
       marker.current = null;
@@ -69,54 +89,77 @@ export default function TrackingMap({
     };
   }, []);
   useEffect(() => {
-    if (!ready || !map.current) return;
-    const m = map.current;
-    if (meetingPoint) {
-      if (!meeting.current)
-        meeting.current = new maplibregl.Marker({ color: "#c96b46" }).addTo(m);
-      meeting.current.setLngLat([meetingPoint.lng, meetingPoint.lat]);
+    if (!ready) return;
+    if (!meetingPoint) {
+      meeting.current?.remove();
+      meeting.current = null;
+      return;
     }
+    if (!meeting.current)
+      meeting.current = new maplibregl.Marker({ color: "#c96b46" }).addTo(
+        map.current,
+      );
+    meeting.current.setLngLat([meetingPoint.lng, meetingPoint.lat]);
+    if (!last.current)
+      map.current.easeTo({
+        center: [meetingPoint.lng, meetingPoint.lat],
+        zoom: 14,
+      });
+  }, [ready, meetingPoint?.lat, meetingPoint?.lng]);
+  useEffect(() => {
+    if (!ready) return;
     if (!pos) {
+      cancel.current?.();
       marker.current?.remove();
       marker.current = null;
       last.current = null;
-      if (meetingPoint)
-        m.easeTo({ center: [meetingPoint.lng, meetingPoint.lat], zoom: 14 });
+      return;
     }
-    if (pos) {
-      const to = [pos.lng, pos.lat];
-      if (!marker.current) {
-        const el = document.createElement("div");
-        el.className = "tracking-marker";
-        el.textContent = "▲";
-        marker.current = new maplibregl.Marker({
-          element: el,
-          rotationAlignment: "map",
-        })
-          .setLngLat(to)
-          .addTo(m);
-        if (meetingPoint)
-          m.fitBounds([to, [meetingPoint.lng, meetingPoint.lat]], {
-            padding: 60,
-            maxZoom: 15,
-          });
-      }
-      marker.current.getElement().classList.toggle("stale", !!stale);
-      marker.current.setRotation(
-        pos.heading ?? (last.current ? heading(last.current.coords, to) : 0),
-      );
-      cancel.current?.();
-      const current = marker.current.getLngLat();
-      cancel.current = animateMarker(
-        marker.current,
-        [current.lng, current.lat],
-        to,
-        last.current ? pos.ts - last.current.ts : 1000,
-      );
-      last.current = { coords: to, ts: pos.ts };
-      if (follow.current) m.easeTo({ center: to, duration: 900 });
+    const m = map.current,
+      to = [pos.lng, pos.lat],
+      fresh = !marker.current;
+    if (fresh) {
+      const el = document.createElement("div");
+      el.className = "tracking-marker";
+      el.textContent = "▲";
+      marker.current = new maplibregl.Marker({
+        element: el,
+        rotationAlignment: "map",
+      })
+        .setLngLat(to)
+        .addTo(m);
     }
-    const coords = route?.coordinates;
+    marker.current.setRotation(
+      pos.heading ?? (last.current ? heading(last.current.coords, to) : 0),
+    );
+    cancel.current?.();
+    const current = marker.current.getLngLat();
+    cancel.current = animateMarker(
+      marker.current,
+      [current.lng, current.lat],
+      to,
+      last.current ? pos.ts - last.current.ts : 1000,
+    );
+    last.current = { coords: to, ts: pos.ts };
+    const duration = window.matchMedia("(prefers-reduced-motion: reduce)")
+      .matches
+      ? 0
+      : 900;
+    if (fresh && meetingPoint)
+      m.fitBounds([to, [meetingPoint.lng, meetingPoint.lat]], {
+        padding: 60,
+        maxZoom: 15,
+        duration,
+      });
+    else if (follow.current) m.easeTo({ center: to, duration });
+  }, [ready, pos]);
+  useEffect(() => {
+    marker.current?.getElement().classList.toggle("stale", !!stale);
+  }, [ready, pos, stale]);
+  useEffect(() => {
+    if (!ready) return;
+    const m = map.current,
+      coords = route?.coordinates;
     const parts =
       coords?.length > 1
         ? splitRoute(coords, pos ? [pos.lng, pos.lat] : coords[0])
@@ -125,7 +168,7 @@ export default function TrackingMap({
       ["passed", "#8e9098"],
       ["remaining", "#4d6655"],
     ]) {
-      const data = parts?.[id] || { type: "FeatureCollection", features: [] };
+      const data = parts?.[id] || EMPTY_DATA;
       if (m.getSource(id)) m.getSource(id).setData(data);
       else {
         m.addSource(id, { type: "geojson", data });
@@ -137,18 +180,37 @@ export default function TrackingMap({
         });
       }
     }
-  }, [ready, pos, meetingPoint, route, stale]);
+  }, [ready, route, pos?.lng, pos?.lat]);
   useEffect(() => {
     if (!ready) return;
-    const markers = providers.map((p) =>
-      new maplibregl.Marker({ color: "#7368a0" })
-        .setLngLat([p.lng, p.lat])
-        .addTo(map.current),
-    );
-    return () => markers.forEach((m) => m.remove());
+    const ids = new Set(providers.map((p) => String(p.providerId)));
+    nearby.current.forEach((m, id) => {
+      if (!ids.has(id)) {
+        m.remove();
+        nearby.current.delete(id);
+      }
+    });
+    for (const p of providers) {
+      const id = String(p.providerId);
+      let entry = nearby.current.get(id);
+      if (!entry) {
+        const link = document.createElement("a");
+        link.href = `#/praticien/${encodeURIComponent(id)}`;
+        link.className = "online-provider-marker";
+        link.textContent = "♡";
+        link.setAttribute(
+          "aria-label",
+          "Voir le profil de ce praticien disponible",
+        );
+        entry = new maplibregl.Marker({ element: link })
+          .setLngLat([p.lng, p.lat])
+          .addTo(map.current);
+        nearby.current.set(id, entry);
+      } else entry.setLngLat([p.lng, p.lat]);
+    }
   }, [ready, providers]);
   return (
-    <section aria-label="Carte du suivi de trajet">
+    <section aria-label={ariaLabel}>
       <div className="tracking-map" ref={host} />
       {error && <p role="status">{error}</p>}
       {moved && (
@@ -157,7 +219,15 @@ export default function TrackingMap({
           onClick={() => {
             follow.current = true;
             setMoved(false);
-            if (pos) map.current?.easeTo({ center: [pos.lng, pos.lat] });
+            const point = pos || meetingPoint || center;
+            if (point)
+              map.current?.easeTo({
+                center: [point.lng, point.lat],
+                duration: window.matchMedia("(prefers-reduced-motion: reduce)")
+                  .matches
+                  ? 0
+                  : 900,
+              });
           }}
         >
           Recentrer
@@ -166,3 +236,4 @@ export default function TrackingMap({
     </section>
   );
 }
+export default memo(TrackingMap);

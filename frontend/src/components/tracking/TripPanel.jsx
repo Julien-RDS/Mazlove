@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import MeetingPointPicker from "./MeetingPointPicker";
 import { trackingApi } from "../../lib/trackingApi";
 import { useLiveTracking } from "../../hooks/useLiveTracking";
-import TrackingMap from "./TrackingMap";
+import TrackingMap from "./LazyTrackingMap";
 import TripStatusStepper from "./TripStatusStepper";
 import EtaCard from "./EtaCard";
 import ProviderConsole from "./ProviderConsole";

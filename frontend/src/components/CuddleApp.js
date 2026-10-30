@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   CalendarDays,
   LogOut,
@@ -8,14 +15,20 @@ import {
   ArrowUpRight,
   Sparkles,
 } from "lucide-react";
-import { Client } from "@stomp/stompjs";
+import { wsClient } from "../lib/ws";
+import { SESSION_UPDATED_EVENT } from "../lib/sessionTracking";
 import { Api, SESSION_EXPIRED_EVENT, tokenStore } from "../api";
 import { loginPath, navigate, useRoute } from "../lib/router";
-import AuthScreen from "./AuthScreen";
+const AuthScreen = lazy(() => import("./AuthScreen"));
 import DiscoverScreen from "./DiscoverScreen";
-import ProviderOnboarding from "./ProviderOnboarding";
-import ProviderScreen from "./ProviderScreen";
-import { SessionDetailScreen, SessionsScreen } from "./SessionsScreen";
+const ProviderOnboarding = lazy(() => import("./ProviderOnboarding"));
+const ProviderScreen = lazy(() => import("./ProviderScreen"));
+const SessionsScreen = lazy(() =>
+  import("./SessionsScreen").then((m) => ({ default: m.SessionsScreen })),
+);
+const SessionDetailScreen = lazy(() =>
+  import("./SessionsScreen").then((m) => ({ default: m.SessionDetailScreen })),
+);
 import { Button, Spinner, cx } from "./ui";
 import "./shell.css";
 
@@ -74,23 +87,15 @@ export default function CuddleApp() {
   useEffect(() => {
     const token = tokenStore.get();
     if (!user || !token) return undefined;
-    const target = new URL(
-      import.meta.env.VITE_API_URL || window.location.origin,
-      window.location.origin,
-    );
-    target.protocol = target.protocol === "https:" ? "wss:" : "ws:";
-    target.pathname = `${target.pathname.replace(/\/$/, "")}/ws`;
-    target.search = "";
-    target.hash = "";
-    const client = new Client({
-      brokerURL: target.toString(),
-      connectHeaders: { Authorization: `Bearer ${token}` },
+    const client = wsClient(token, {
       reconnectDelay: 5000,
       onConnect: () =>
         client.subscribe("/user/queue/notifications", (frame) => {
           try {
             const event = JSON.parse(frame.body);
             if (typeof event.message === "string") notify(event.message);
+            if (event.sessionId)
+              window.dispatchEvent(new Event(SESSION_UPDATED_EVENT));
           } catch {
             // Ignore malformed events without breaking the connection.
           }
@@ -300,7 +305,7 @@ export default function CuddleApp() {
       </header>
 
       <main id="contenu" tabIndex={-1} className="shell-main">
-        {renderScreen()}
+        <Suspense fallback={<Spinner />}>{renderScreen()}</Suspense>
       </main>
 
       <footer className="shell-footer">

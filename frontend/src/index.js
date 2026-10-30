@@ -7,8 +7,12 @@ import "@fontsource/atkinson-hyperlegible/400.css";
 import "@fontsource/atkinson-hyperlegible/700.css";
 import "./index.css";
 import CuddleApp from "./components/CuddleApp";
-import AdminSosPage from "./components/tracking/AdminSosPage";
-import PublicTripPage from "./components/tracking/PublicTripPage";
+const AdminSosPage = React.lazy(
+  () => import("./components/tracking/AdminSosPage"),
+);
+const PublicTripPage = React.lazy(
+  () => import("./components/tracking/PublicTripPage"),
+);
 const Demo =
   import.meta.env.VITE_DEMO === "true"
     ? React.lazy(() => import("./dev/DemoSplitScreen"))
@@ -28,5 +32,9 @@ const page =
   );
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>{page}</React.StrictMode>,
+  <React.StrictMode>
+    <React.Suspense fallback={<p role="status">Chargement…</p>}>
+      {page}
+    </React.Suspense>
+  </React.StrictMode>,
 );

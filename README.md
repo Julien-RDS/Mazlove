@@ -222,3 +222,9 @@ make e2e                   # après npm ci et npx playwright install chromium da
 Ouvrir **http://localhost:3000/demo** puis **Lancer** suffit pour voir Alice suivre Sophie sans déplacer son téléphone. La console permet aussi le consentement manuel et le vrai GPS. Les liens `/t/:token` fonctionnent sans compte ; les alertes administrateur sont sur `/admin/sos` (compte ADMIN requis). Emails : http://localhost:8025.
 
 Voir [docs/TRACKING.md](docs/TRACKING.md) pour la migration des statuts, les limites PWA, la confidentialité, les tests, les variables et OSRM. Le profil `dev` donne accès aux comptes fictifs sans OTP : déployer en `prod`, reconstruire le frontend avec `VITE_DEMO=false` et configurer les secrets.
+
+## Suivre une séance depuis l’accueil
+
+La page d’accueil affiche votre séance active, son ETA et un accès au trajet ou à la console prestataire. Les cartes se chargent à leur ouverture. Les disponibilités autour du point de recherche sont accessibles dans la même section ; leur position reste approximative.
+
+Tests de cet accueil, sans backend ni Docker : `cd frontend && npm run test:frontpage` (Chromium requis). Détails et mesures : [docs/FRONTPAGE-TRACKING.md](docs/FRONTPAGE-TRACKING.md). [Prompt de la prochaine phase](docs/NEXT-PROMPT.md).
