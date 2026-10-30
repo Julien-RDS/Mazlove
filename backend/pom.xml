@@ -126,22 +126,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Tests de charge Gatling (src/test/scala), lancés à part via "mvn gatling:test". -->
-        <dependency>
-            <groupId>io.gatling.highcharts</groupId>
-            <artifactId>gatling-charts-highcharts</artifactId>
-            <version>${gatling.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- Déclarée explicitement pour que scala-maven-plugin compile avec la même version
-             que celle présente au classpath (2.13.16 reste binaire-compatible avec le 2.13.10
-             utilisé pour compiler Gatling 3.9.4, et supporte les JDK récents). -->
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-            <version>${scala.version}</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
@@ -160,29 +144,60 @@
                 </configuration>
             </plugin>
 
-            <!-- Compile les simulations Gatling écrites en Scala (src/test/scala). -->
-            <plugin>
-                <groupId>net.alchim31.maven</groupId>
-                <artifactId>scala-maven-plugin</artifactId>
-                <version>4.8.1</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- "mvn gatling:test" exécute les simulations (API démarrée au préalable). -->
-            <plugin>
-                <groupId>io.gatling</groupId>
-                <artifactId>gatling-maven-plugin</artifactId>
-                <version>4.3.7</version>
-                <configuration>
-                    <simulationClass>com.mazlove.performance.SessionsPerformanceTest</simulationClass>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
+
+    <!-- Tests de charge Gatling (src/test/scala) isolés dans le profil "perf" :
+         le build normal (et donc l'image Docker) ne télécharge ni Gatling ni Scala.
+         Lancement : mvn -Pperf gatling:test (API démarrée au préalable). -->
+    <profiles>
+        <profile>
+            <id>perf</id>
+            <dependencies>
+                <!-- Tests de charge Gatling (src/test/scala), lancés à part via "mvn -Pperf gatling:test". -->
+                <dependency>
+                    <groupId>io.gatling.highcharts</groupId>
+                    <artifactId>gatling-charts-highcharts</artifactId>
+                    <version>${gatling.version}</version>
+                    <scope>test</scope>
+                </dependency>
+                <!-- Déclarée explicitement pour que scala-maven-plugin compile avec la même version
+                     que celle présente au classpath (2.13.16 reste binaire-compatible avec le 2.13.10
+                     utilisé pour compiler Gatling 3.9.4, et supporte les JDK récents). -->
+                <dependency>
+                    <groupId>org.scala-lang</groupId>
+                    <artifactId>scala-library</artifactId>
+                    <version>${scala.version}</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <!-- Compile les simulations Gatling écrites en Scala (src/test/scala). -->
+                    <plugin>
+                        <groupId>net.alchim31.maven</groupId>
+                        <artifactId>scala-maven-plugin</artifactId>
+                        <version>4.8.1</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>testCompile</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- "mvn -Pperf gatling:test" exécute les simulations (API démarrée au préalable). -->
+                    <plugin>
+                        <groupId>io.gatling</groupId>
+                        <artifactId>gatling-maven-plugin</artifactId>
+                        <version>4.3.7</version>
+                        <configuration>
+                            <simulationClass>com.mazlove.performance.SessionsPerformanceTest</simulationClass>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

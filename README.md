@@ -196,7 +196,7 @@ curl -X POST localhost:3001/api/auth/verify-otp -H 'Content-Type: application/js
 cd backend
 mvn test                       # tests unitaires, sans base ni Redis
 MAZLOVE_IT=true mvn test       # + tests d'intégration (PostgreSQL et Redis démarrés)
-mvn gatling:test               # test de charge (API démarrée ; MAZLOVE_JWT pour inclure la réservation)
+mvn -Pperf gatling:test        # test de charge (API démarrée ; MAZLOVE_JWT pour inclure la réservation)
 ```
 
 ## Production

@@ -9,7 +9,7 @@ import scala.util.Random
 
 /**
  * Test de charge Gatling (syntaxe 3.9). L'API doit tourner avant le lancement :
- *   mvn gatling:test
+ *   mvn -Pperf gatling:test
  *
  * Paramètres par variables d'environnement :
  *   MAZLOVE_BASE_URL     URL de l'API                            (défaut http://localhost:3001)
