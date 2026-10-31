@@ -8,9 +8,9 @@ import { DAY_INITIALS, DAY_LABELS, DAYS, SESSION_STATUS, formatRating, initials 
 export const cx = (...classes) => classes.filter(Boolean).join(' ');
 
 const BUTTON_VARIANTS = {
-  primary: 'bg-nuit text-white hover:bg-nuit-800 disabled:bg-nuit/40',
-  secondary: 'bg-white text-nuit ring-1 ring-inset ring-lilas hover:ring-nuit/50 disabled:text-nuit-doux',
-  danger: 'bg-white text-alerte ring-1 ring-inset ring-alerte/40 hover:bg-alerte-pale',
+  primary: 'bg-nuit text-sur-nuit hover:bg-nuit-800 disabled:bg-nuit/40',
+  secondary: 'bg-carte text-nuit ring-1 ring-inset ring-lilas hover:ring-nuit/50 disabled:text-nuit-doux',
+  danger: 'bg-carte text-alerte ring-1 ring-inset ring-alerte/40 hover:bg-alerte-pale',
   // Action secondaire présentée comme un lien (annuler, changer d'email…).
   quiet:
     'text-nuit underline decoration-lilas decoration-2 underline-offset-4 hover:decoration-nuit disabled:text-nuit-doux',
@@ -48,7 +48,7 @@ export function Button({
 }
 
 export const inputClass =
-  'block w-full rounded-lg border border-lilas bg-white px-3.5 py-2.5 text-nuit placeholder:text-nuit-doux ' +
+  'block w-full rounded-lg border border-lilas bg-carte px-3.5 py-2.5 text-nuit placeholder:text-nuit-doux ' +
   'focus:border-nuit focus:outline-none aria-[invalid=true]:border-alerte';
 
 /**
@@ -124,7 +124,7 @@ export function Stars({ value, className }) {
         <Star
           key={n}
           aria-hidden="true"
-          className={cx('h-4 w-4', n <= rounded ? 'fill-abricot text-abricot' : 'fill-transparent text-lilas')}
+          className={cx('h-4 w-4', n <= rounded ? 'fill-rose text-rose' : 'fill-transparent text-lilas')}
         />
       ))}
     </span>
@@ -193,7 +193,7 @@ export function WeekStrip({ availability = [] }) {
           aria-hidden="true"
           className={cx(
             'flex h-6 w-6 items-center justify-center rounded-full text-[0.7rem] font-bold',
-            openDays.has(day) ? 'bg-nuit text-white' : 'text-nuit-doux ring-1 ring-inset ring-lilas'
+            openDays.has(day) ? 'bg-nuit text-sur-nuit' : 'text-nuit-doux ring-1 ring-inset ring-lilas'
           )}
         >
           {DAY_INITIALS[day]}
@@ -267,7 +267,7 @@ export function Sheet({ title, onClose, children, footer }) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="flex max-h-[92vh] w-full flex-col rounded-t-3xl bg-white shadow-2xl outline-none motion-safe:animate-sheet-in sm:max-w-lg sm:rounded-3xl"
+        className="flex max-h-[92vh] w-full flex-col rounded-t-3xl bg-carte shadow-2xl outline-none motion-safe:animate-sheet-in sm:max-w-lg sm:rounded-3xl"
       >
         <div className="flex items-start justify-between gap-4 px-6 pb-2 pt-6">
           <h2 id={titleId} className="text-2xl font-semibold">

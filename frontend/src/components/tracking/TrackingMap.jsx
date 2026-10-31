@@ -4,6 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./tracking.css";
 import { splitRoute, heading } from "../../lib/geo";
 import { animateMarker } from "../../lib/animateMarker";
+import { currentTheme, mapStyleUrl, MAP_COLORS } from "../../lib/theme";
 const EMPTY_PROVIDERS = [];
 const EMPTY_DATA = { type: "FeatureCollection", features: [] };
 function TrackingMap({
@@ -27,6 +28,9 @@ function TrackingMap({
     nearby = useRef(new Map()),
     initialCenter = useRef(pos || meetingPoint || center);
   pick.current = onPick;
+  // Thème figé pour la vie de cette carte : LazyTrackingMap la recrée (key) quand il change.
+  const [theme] = useState(() => currentTheme());
+  const colors = MAP_COLORS[theme];
   const [moved, setMoved] = useState(false),
     [ready, setReady] = useState(false),
     [error, setError] = useState("");
@@ -38,9 +42,7 @@ function TrackingMap({
       const c = initialCenter.current;
       m = new maplibregl.Map({
         container: host.current,
-        style:
-          import.meta.env.VITE_MAP_STYLE_URL ||
-          "https://tiles.openfreemap.org/styles/liberty",
+        style: mapStyleUrl(theme),
         center: c ? [c.lng, c.lat] : [2.347, 48.8584],
         zoom: 12,
         attributionControl: true,
@@ -106,7 +108,7 @@ function TrackingMap({
       return;
     }
     if (!meeting.current)
-      meeting.current = new maplibregl.Marker({ color: "#c96b46" })
+      meeting.current = new maplibregl.Marker({ color: colors.meeting })
         .setLngLat([meetingPoint.lng, meetingPoint.lat])
         .addTo(map.current);
     meeting.current.setLngLat([meetingPoint.lng, meetingPoint.lat]);
@@ -188,8 +190,8 @@ function TrackingMap({
         ? splitRoute(coords, pos ? [pos.lng, pos.lat] : coords[0])
         : null;
     for (const [id, color] of [
-      ["passed", "#8e9098"],
-      ["remaining", "#4d6655"],
+      ["passed", colors.passed],
+      ["remaining", colors.remaining],
     ]) {
       const data = parts?.[id] || EMPTY_DATA;
       if (m.getSource(id)) m.getSource(id).setData(data);

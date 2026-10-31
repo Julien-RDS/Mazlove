@@ -141,7 +141,7 @@ export default function ProviderScreen({ id, user, position, notify }) {
     <div className="provider-detail space-y-8 pb-8">
       <BackLink />
 
-      <section className="provider-hero grid overflow-hidden rounded-[2rem] bg-[#f1d8c6] sm:grid-cols-[minmax(0,22rem)_1fr] sm:items-center">
+      <section className="provider-hero grid overflow-hidden rounded-[2rem] bg-rose-pale sm:grid-cols-[minmax(0,22rem)_1fr] sm:items-center">
         <div className="relative">
           <Gallery
             name={name}
@@ -164,7 +164,7 @@ export default function ProviderScreen({ id, user, position, notify }) {
           >
             {name}
           </h1>
-          <p className="text-lg text-nuit-doux">{provider.category}</p>
+          <p className="text-lg text-nuit-800">{provider.category}</p>
           {distance && (
             <p className="flex items-center gap-2 text-sm">
               <MapPin size={16} aria-hidden="true" /> {distance} de{" "}
@@ -179,12 +179,12 @@ export default function ProviderScreen({ id, user, position, notify }) {
                 <span className="font-bold" aria-hidden="true">
                   {formatRating(provider.rating)}
                 </span>
-                <span className="text-nuit-doux">
+                <span className="text-nuit-800">
                   ({provider.reviewCount} avis)
                 </span>
               </span>
             ) : (
-              <span className="text-nuit-doux">Nouveau sur Mazlove</span>
+              <span className="text-nuit-800">Nouveau sur Mazlove</span>
             )}
           </div>
           <p className="max-w-prose whitespace-pre-line pt-2">{provider.bio}</p>
@@ -202,7 +202,7 @@ export default function ProviderScreen({ id, user, position, notify }) {
                   block: "start",
                 })
             }
-            className="inline-flex items-center gap-2 rounded-full bg-[#24211e] px-6 py-3 font-bold text-white"
+            className="inline-flex items-center gap-2 rounded-full bg-nuit px-6 py-3 font-bold text-sur-nuit"
           >
             Découvrir les séances <ArrowUpRight size={18} aria-hidden="true" />
           </button>
@@ -226,7 +226,7 @@ export default function ProviderScreen({ id, user, position, notify }) {
                 {services.map((service) => (
                   <li
                     key={service.id}
-                    className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-[#eee4dc] bg-white p-5 sm:p-6"
+                    className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-lilas bg-carte p-5 sm:p-6"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-lg">{service.name}</p>
@@ -265,7 +265,7 @@ export default function ProviderScreen({ id, user, position, notify }) {
           )}
           <section
             aria-labelledby="deroule"
-            className="space-y-5 rounded-3xl bg-[#f6eee7] p-6"
+            className="space-y-5 rounded-3xl bg-rose-pale p-6"
           >
             <h2 id="deroule" className="text-2xl font-semibold">
               Comment se passe une séance
@@ -288,7 +288,7 @@ export default function ProviderScreen({ id, user, position, notify }) {
                 <li key={title} className="grid grid-cols-[2.25rem_1fr] gap-3">
                   <span
                     aria-hidden="true"
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white font-display text-lg font-semibold"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-carte font-display text-lg font-semibold"
                   >
                     {index + 1}
                   </span>
@@ -318,7 +318,7 @@ export default function ProviderScreen({ id, user, position, notify }) {
                 {reviews.map((review) => (
                   <li
                     key={review.id}
-                    className="space-y-1.5 rounded-2xl bg-white p-4"
+                    className="space-y-1.5 rounded-2xl bg-carte p-4"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-bold">{review.authorName}</p>
@@ -341,8 +341,8 @@ export default function ProviderScreen({ id, user, position, notify }) {
           aria-labelledby="dispos"
           className="space-y-4 lg:sticky lg:top-24 lg:self-start"
         >
-          <div className="space-y-5 rounded-[2rem] border border-[#eedfd3] bg-white p-6 shadow-sm">
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#fff0e4] px-3 py-1.5 text-xs font-bold uppercase tracking-wider">
+          <div className="space-y-5 rounded-[2rem] border border-lilas bg-carte p-6 shadow-sm">
+            <span className="inline-flex items-center gap-2 rounded-full bg-rose-pale px-3 py-1.5 text-xs font-bold uppercase tracking-wider">
               <CalendarDays size={14} aria-hidden="true" /> Votre moment
               commence ici
             </span>
@@ -612,7 +612,7 @@ function BookingSheet({
         </Notice>
       ) : (
         <div className="space-y-6 pt-2">
-          <div className="flex items-center gap-3 rounded-2xl bg-[#fff0e4] p-4">
+          <div className="flex items-center gap-3 rounded-2xl bg-rose-pale p-4">
             <CalendarDays className="shrink-0" size={24} aria-hidden="true" />
             <p className="text-sm">
               Un moment pour vous, avec <strong>{name}</strong>. Choisissez
@@ -658,8 +658,8 @@ function BookingSheet({
                     className={cx(
                       "flex min-h-[5rem] min-w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-full px-3 py-3 transition-colors",
                       selected
-                        ? "bg-nuit text-white"
-                        : "bg-[#f8f1eb] hover:bg-[#f0daca]",
+                        ? "bg-nuit text-sur-nuit"
+                        : "bg-lilas-pale hover:bg-lilas",
                     )}
                   >
                     <span className="text-[0.85rem]">{formatWeekday(d)}</span>
@@ -683,7 +683,7 @@ function BookingSheet({
                     className={cx(
                       "rounded-full px-5 py-1.5 font-bold transition-colors",
                       duration === h
-                        ? "bg-white text-nuit shadow-sm"
+                        ? "bg-carte text-nuit shadow-sm"
                         : "text-nuit-doux hover:text-nuit",
                     )}
                   >
@@ -716,8 +716,8 @@ function BookingSheet({
                     className={cx(
                       "rounded-full py-3 font-bold tabular-nums transition-colors",
                       time === t
-                        ? "bg-nuit text-white"
-                        : "bg-[#f8f1eb] hover:bg-[#f0daca]",
+                        ? "bg-nuit text-sur-nuit"
+                        : "bg-lilas-pale hover:bg-lilas",
                     )}
                   >
                     {t}

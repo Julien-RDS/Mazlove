@@ -88,7 +88,7 @@ export function SessionsScreen({ user }) {
       )}
 
       <div
-        className="inline-flex rounded-full bg-white p-1"
+        className="inline-flex rounded-full bg-carte p-1"
         role="group"
         aria-label="Période"
       >
@@ -104,7 +104,7 @@ export function SessionsScreen({ user }) {
             className={cx(
               "rounded-full px-5 py-2 font-bold transition-colors",
               tab === value
-                ? "bg-nuit text-white"
+                ? "bg-nuit text-sur-nuit"
                 : "text-nuit-doux hover:text-nuit",
             )}
           >
@@ -164,7 +164,7 @@ function SessionRow({ session }) {
   return (
     <a
       href={`#/seances/${session.id}`}
-      className="grid grid-cols-[3.5rem_1fr_auto] items-center gap-4 rounded-3xl bg-white p-4 ring-1 ring-transparent hover:ring-lilas"
+      className="grid grid-cols-[3.5rem_1fr_auto] items-center gap-4 rounded-3xl bg-carte p-4 ring-1 ring-transparent hover:ring-lilas"
     >
       <span
         className="flex flex-col items-center rounded-2xl bg-brume py-1.5"
@@ -187,7 +187,7 @@ function SessionRow({ session }) {
         {reviewPending && (
           <span className="mt-1 inline-flex items-center gap-1 text-[0.95rem] font-bold">
             <Star
-              className="h-4 w-4 fill-abricot text-abricot"
+              className="h-4 w-4 fill-rose text-rose"
               aria-hidden="true"
             />
             Avis à laisser
@@ -327,7 +327,7 @@ export function SessionDetailScreen({ id, notify }) {
         onChange={setSession}
       />
       {session.notes && (
-        <section className="space-y-1 rounded-3xl bg-white p-5">
+        <section className="space-y-1 rounded-3xl bg-carte p-5">
           <h2 className="text-xl font-semibold">
             {asClient
               ? "Vos consignes"
@@ -391,9 +391,9 @@ function ArrivalTicket({ code, providerName }) {
   return (
     <section
       aria-labelledby="code-arrivee"
-      className="relative rounded-3xl bg-abricot px-6 py-7 motion-safe:animate-ticket-in"
+      className="relative rounded-3xl bg-rouge px-6 py-7 text-white motion-safe:animate-ticket-in"
     >
-      <h2 id="code-arrivee" className="font-sans text-lg font-bold">
+      <h2 id="code-arrivee" className="font-sans text-lg font-bold text-white">
         Votre code d'arrivée
       </h2>
       <p className="mt-2 font-display text-5xl font-semibold tracking-[0.18em] sm:text-6xl">
@@ -402,7 +402,7 @@ function ArrivalTicket({ code, providerName }) {
       </p>
       {/* Pointillés et encoches façon billet détachable (purement décoratif). */}
       <div
-        className="relative my-6 border-t-2 border-dashed border-nuit/25"
+        className="relative my-6 border-t-2 border-dashed border-white/40"
         aria-hidden="true"
       >
         <span className="absolute -left-9 -top-[13px] h-6 w-6 rounded-full bg-brume" />
@@ -438,7 +438,7 @@ function ArrivalCodeForm({ session, onValidated }) {
   return (
     <form
       onSubmit={submit}
-      className="space-y-4 rounded-3xl bg-white p-5"
+      className="space-y-4 rounded-3xl bg-carte p-5"
       noValidate
     >
       <h2 className="text-2xl font-semibold">Démarrer la séance</h2>
@@ -532,7 +532,7 @@ function CancelSession({ session, onCancelled }) {
   }
   return (
     <div
-      className="space-y-3 rounded-3xl bg-white p-5"
+      className="space-y-3 rounded-3xl bg-carte p-5"
       role="group"
       aria-label="Confirmer l'annulation"
     >
@@ -593,7 +593,7 @@ function ReviewForm({ session, onPublished }) {
   return (
     <form
       onSubmit={submit}
-      className="space-y-5 rounded-3xl bg-white p-5"
+      className="space-y-5 rounded-3xl bg-carte p-5"
       noValidate
     >
       <h2 className="text-2xl font-semibold">
@@ -622,8 +622,8 @@ function ReviewForm({ session, onPublished }) {
                   className={cx(
                     "h-9 w-9 rounded-sm transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-nuit",
                     n <= rating
-                      ? "fill-abricot text-abricot"
-                      : "fill-transparent text-lilas hover:text-abricot",
+                      ? "fill-rose text-rose"
+                      : "fill-transparent text-lilas hover:text-rose",
                   )}
                 />
               </label>

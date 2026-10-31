@@ -4,7 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Réservez une séance de câlins professionnels, non sexuelle, avec un praticien près de chez vous." />
-    <meta name="theme-color" content="#F1F0F6" />
+    <meta name="theme-color" content="#F8F7F3" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // Thème avant le premier rendu (évite l'éclair de la mauvaise couleur). Même règle que src/lib/theme.js.
+      (function () {
+        var saved = null;
+        try { saved = localStorage.getItem('mazlove.theme'); } catch (e) {}
+        var dark = false;
+        try { dark = matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+        var theme = saved === 'dark' || saved === 'light' ? saved : dark ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', theme === 'dark' ? '#161219' : '#F8F7F3');
+      })();
+    </script>
     <title>Mazlove</title>
   </head>
   <body>

@@ -16,6 +16,7 @@ import {
   ArrowUpRight,
   Sparkles,
 } from "lucide-react";
+import ThemeToggle from "./ThemeToggle";
 import { wsClient } from "../lib/ws";
 import { SESSION_UPDATED_EVENT } from "../lib/sessionTracking";
 import { Api, SESSION_EXPIRED_EVENT, tokenStore } from "../api";
@@ -250,7 +251,7 @@ export default function CuddleApp() {
         <button
           type="button"
           onClick={() => document.getElementById("contenu")?.focus()}
-          className="sr-only z-50 rounded-full bg-nuit px-4 py-2 font-bold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-3"
+          className="sr-only z-50 rounded-full bg-nuit px-4 py-2 font-bold text-sur-nuit focus:not-sr-only focus:fixed focus:left-4 focus:top-3"
         >
           Aller au contenu
         </button>
@@ -280,6 +281,7 @@ export default function CuddleApp() {
               ))}
             </nav>
             <div className="shell-account">
+              <ThemeToggle />
               {user ? (
                 <>
                   {user.role === "PROVIDER" && (
@@ -363,7 +365,7 @@ export default function CuddleApp() {
           {toasts.map((toast) => (
             <p
               key={toast.id}
-              className="pointer-events-auto rounded-full bg-nuit px-5 py-2.5 font-bold text-white shadow-lg"
+              className="pointer-events-auto rounded-full bg-nuit px-5 py-2.5 font-bold text-sur-nuit shadow-lg"
             >
               {toast.message}
             </p>

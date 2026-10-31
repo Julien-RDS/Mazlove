@@ -128,7 +128,7 @@ export default function ProviderOnboarding({ user, position, onCreated }) {
         </p>
       </div>
 
-      <form onSubmit={submit} className="space-y-6 rounded-3xl bg-white p-5 sm:p-6" noValidate>
+      <form onSubmit={submit} className="space-y-6 rounded-3xl bg-carte p-5 sm:p-6" noValidate>
         {error && <Notice tone="error">{error}</Notice>}
 
         <Field label="Type de séance" hint="Choisissez une proposition ou écrivez la vôtre." error={fields.category}>

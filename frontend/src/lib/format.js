@@ -33,7 +33,7 @@ export const DAY_INITIALS = {
 
 /** Statuts de séance tels que l'utilisateur les comprend (et non tels que l'API les nomme). */
 export const SESSION_STATUS = {
-  PENDING: { label: "Réservée", className: "bg-abricot-pale text-nuit" },
+  PENDING: { label: "Réservée", className: "bg-rose-pale text-nuit" },
   EN_ROUTE: { label: "En route", className: "bg-sauge-pale text-sauge" },
   ARRIVED: { label: "Arrivé", className: "bg-sauge-pale text-sauge" },
   IN_PROGRESS: { label: "En cours", className: "bg-sauge-pale text-sauge" },
@@ -41,7 +41,7 @@ export const SESSION_STATUS = {
   DONE: { label: "Terminée", className: "bg-lilas-pale text-nuit" },
   CANCELLED: {
     label: "Annulée",
-    className: "bg-white text-nuit-doux ring-1 ring-inset ring-lilas",
+    className: "bg-carte text-nuit-doux ring-1 ring-inset ring-lilas",
   },
 };
 

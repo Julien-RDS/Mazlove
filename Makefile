@@ -8,7 +8,10 @@ endif
 # Déploiement sans eux : make up COMPOSE_PROFILES=
 export COMPOSE_PROFILES ?= dev
 
-.PHONY: up down logs seed test clean status swagger mail db
+# Commit embarqué dans les images (étiquette) et dans le frontend (version.json) : voir `make version`.
+export GIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+
+.PHONY: up down logs seed test clean status swagger mail db version
 
 up:
 	$(COMPOSE) up -d --build
@@ -30,6 +33,9 @@ clean:
 
 status:
 	$(COMPOSE) ps
+
+version:
+	./scripts/check-served-version.sh
 
 swagger:
 	@echo 'http://localhost:3001/swagger-ui.html'

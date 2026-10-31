@@ -5,7 +5,9 @@ import "@fontsource/fraunces/500.css";
 import "@fontsource/fraunces/600.css";
 import "@fontsource/atkinson-hyperlegible/400.css";
 import "@fontsource/atkinson-hyperlegible/700.css";
+import "./theme.css";
 import "./index.css";
+import { initTheme } from "./lib/theme";
 import CuddleApp from "./components/CuddleApp";
 const AdminSosPage = React.lazy(
   () => import("./components/tracking/AdminSosPage"),
@@ -17,6 +19,7 @@ const Demo =
   import.meta.env.VITE_DEMO === "true"
     ? React.lazy(() => import("./dev/DemoSplitScreen"))
     : null;
+initTheme();
 const path = window.location.pathname;
 const page =
   path === "/admin/sos" ? (

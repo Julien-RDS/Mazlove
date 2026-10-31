@@ -29,7 +29,10 @@ services:
       retries: 10
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown} # étiquette de l'image : voir scripts/check-served-version.sh
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,8 +75,10 @@ services:
     build:
       context: ./frontend
       args:
+        GIT_SHA: ${GIT_SHA:-unknown}
         VITE_DEMO: ${VITE_DEMO:-true}
         VITE_MAP_STYLE_URL: ${VITE_MAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
+        VITE_MAP_STYLE_DARK_URL: ${VITE_MAP_STYLE_DARK_URL:-https://tiles.openfreemap.org/styles/dark}
     depends_on:
       backend:
         condition: service_healthy

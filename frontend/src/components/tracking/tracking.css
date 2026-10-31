@@ -2,8 +2,8 @@
   display: grid;
   gap: 16px;
   padding: 20px;
-  background: #fffaf4;
-  border: 1px solid #ddd4ca;
+  background: rgb(var(--c-carte));
+  border: 1px solid rgb(var(--c-lilas));
   border-radius: 24px;
 }
 .tracking-panel button,
@@ -11,15 +11,16 @@
 .tracking-panel input {
   min-height: 44px;
   padding: 8px 14px;
-  border: 1px solid #c5b9b0;
+  border: 1px solid rgb(var(--c-lilas-fort));
   border-radius: 12px;
-  background: white;
+  background: rgb(var(--c-carte));
+  color: rgb(var(--c-nuit));
 }
 .tracking-panel button:disabled {
   opacity: 0.5;
 }
 .tracking-panel button:focus-visible {
-  outline: 3px solid #4d6655;
+  outline: 3px solid rgb(var(--c-sauge));
   outline-offset: 2px;
 }
 .tracking-map {
@@ -30,12 +31,12 @@
 .tracking-marker {
   width: 30px;
   height: 30px;
-  background: #4d6655;
+  background: rgb(var(--c-sauge-fill));
   border: 3px solid white;
   border-radius: 50%;
   color: white;
   text-align: center;
-  box-shadow: 0 0 0 8px #4d665533;
+  box-shadow: 0 0 0 8px rgb(var(--c-sauge-fill) / 0.2);
 }
 .tracking-marker.stale {
   background: #777;
@@ -53,12 +54,12 @@
 }
 .tracking-warning {
   padding: 12px;
-  background: #fff0ce;
+  background: rgb(var(--c-attention-pale));
   border-radius: 12px;
 }
 .tracking-sos {
-  color: #a12222;
-  border-color: #a12222 !important;
+  color: rgb(var(--c-rouge-deep));
+  border-color: rgb(var(--c-rouge-deep)) !important;
   touch-action: none;
 }
 .demo-grid {
@@ -76,10 +77,10 @@
   flex-wrap: wrap;
 }
 .tracking-error {
-  color: #a12222;
+  color: rgb(var(--c-alerte));
 }
 .tracking-dialog {
-  border: 2px solid #4d6655;
+  border: 2px solid rgb(var(--c-sauge));
   padding: 16px;
   border-radius: 16px;
 }
@@ -103,12 +104,30 @@
   height: 44px;
   border: 3px solid white;
   border-radius: 50%;
-  background: #675c8a;
+  background: rgb(var(--c-violet));
   color: white;
   font-size: 25px;
   box-shadow: 0 3px 10px #30283d33;
 }
 .online-provider-marker:focus-visible {
-  outline: 3px solid #ef743d;
+  outline: 3px solid rgb(var(--c-rose));
   outline-offset: 3px;
+}
+
+/* Contrôles et crédits de la carte : assortis au mode nuit (le fond de carte sombre vient du style
+   OpenFreeMap « dark », voir src/lib/theme.js). */
+:root[data-theme='dark'] .maplibregl-ctrl-group {
+  background: rgb(var(--c-carte));
+}
+:root[data-theme='dark'] .maplibregl-ctrl-group button + button {
+  border-top-color: rgb(var(--c-lilas));
+}
+:root[data-theme='dark'] .maplibregl-ctrl-group .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+:root[data-theme='dark'] .maplibregl-ctrl-attrib {
+  background: rgb(var(--c-carte) / 0.75);
+}
+:root[data-theme='dark'] .maplibregl-ctrl-attrib a {
+  color: rgb(var(--c-nuit-doux));
 }

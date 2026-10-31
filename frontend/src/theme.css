@@ -1,0 +1,107 @@
+/*
+ * Jetons de couleur Mazlove : source unique des couleurs, mode jour et mode nuit.
+ *
+ * Les noms décrivent des RÔLES, pas des teintes : en mode nuit, « nuit » (l'encre) devient clair et
+ * « brume » (le fond) devient sombre. Les valeurs sont des triplets RGB pour garder l'opacité
+ * (rgb(var(--c-nuit) / .4)). Tailwind lit ces variables (tailwind.config.js) ; les feuilles de style
+ * les utilisent directement. Ne plus écrire de couleur en dur : ajouter un jeton ici.
+ *
+ * Accents : ROSE (identité : logo, accueil, étoiles, états « réservé ») et ROUGE (moments qui comptent :
+ * code d'arrivée, SOS, favori). Les contrastes sont contrôlés par src/lib/theme.test.js.
+ */
+:root {
+  color-scheme: light;
+
+  /* Neutres */
+  --c-brume: 248 247 243; /* fond de page */
+  --c-carte: 255 255 255; /* cartes, champs */
+  --c-lilas: 226 223 213; /* traits, surfaces neutres appuyées */
+  --c-lilas-pale: 240 237 230; /* surfaces neutres légères */
+  --c-lilas-fort: 201 196 184; /* contours de champs */
+  --c-lueur: 248 246 240; /* reflet de l'animation de chargement */
+  --c-nuit: 34 35 31; /* encre, boutons principaux */
+  --c-nuit-800: 60 61 52;
+  --c-nuit-doux: 107 107 98; /* texte secondaire */
+  --c-sur-nuit: 255 255 255; /* texte posé sur une surface « nuit » */
+
+  /* Rose : accent d'identité */
+  --c-rose: 214 51 108; /* pastille, icône, étoile (surface sous texte blanc ou icône) */
+  --c-rose-pale: 252 228 236; /* teinte légère */
+  --c-rose-soft: 247 182 200; /* aplat de l'accueil */
+  --c-rose-line: 239 166 189; /* contour sur teinte rose */
+  --c-rose-deep: 166 30 77; /* texte rose lisible sur fond clair ou sur teinte */
+  --c-rose-ink: 90 22 48; /* texte sur l'aplat rose */
+
+  /* Rouge : accent d'urgence et d'importance */
+  --c-rouge: 200 40 62; /* surface sous texte blanc (code d'arrivée) */
+  --c-rouge-pale: 253 227 227;
+  --c-rouge-deep: 143 29 29; /* texte rouge (SOS, favori) */
+
+  /* États */
+  --c-sauge: 47 102 80; /* vérifié, séance en cours (texte, icône) */
+  --c-sauge-pale: 220 235 227;
+  --c-sauge-wash: 238 242 232; /* fond léger des blocs de suivi */
+  --c-sauge-fill: 77 102 85; /* surface sous texte ou icône blanche (marqueur) */
+  --c-alerte: 168 61 51; /* erreurs, annulation */
+  --c-alerte-pale: 246 225 222;
+  --c-attention-pale: 255 240 206;
+
+  /* Bloc sombre de réassurance et marqueur des praticiens disponibles */
+  --c-profond: 38 43 35;
+  --c-sur-profond: 238 240 225;
+  --c-sur-profond-doux: 185 193 176;
+  --c-sur-profond-accent: 185 199 163;
+  --c-violet: 103 92 138;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --c-brume: 22 18 25;
+  --c-carte: 31 26 36;
+  --c-lilas: 58 51 66;
+  --c-lilas-pale: 39 33 48;
+  --c-lilas-fort: 90 81 99;
+  --c-lueur: 58 51 66;
+  --c-nuit: 244 238 241;
+  --c-nuit-800: 221 211 217;
+  --c-nuit-doux: 183 172 181;
+  --c-sur-nuit: 22 18 25;
+
+  --c-rose: 224 69 123;
+  --c-rose-pale: 58 31 43;
+  --c-rose-soft: 91 36 56;
+  --c-rose-line: 138 62 88;
+  --c-rose-deep: 255 159 188;
+  --c-rose-ink: 255 217 228;
+
+  --c-rouge: 200 40 62;
+  --c-rouge-pale: 62 26 28;
+  --c-rouge-deep: 255 140 140;
+
+  --c-sauge: 134 203 167;
+  --c-sauge-pale: 27 48 39;
+  --c-sauge-wash: 30 38 34;
+  --c-sauge-fill: 58 133 99;
+  --c-alerte: 255 143 134;
+  --c-alerte-pale: 58 28 27;
+  --c-attention-pale: 58 47 20;
+
+  --c-profond: 45 37 54;
+  --c-sur-profond: 241 233 238;
+  --c-sur-profond-doux: 189 177 188;
+  --c-sur-profond-accent: 201 184 198;
+  --c-violet: 103 92 138;
+}
+
+/* Les photos restent lisibles sans éblouir la nuit. */
+:root[data-theme='dark'] .provider-portrait,
+:root[data-theme='dark'] .hero-visual > img,
+:root[data-theme='dark'] .provider-hero img {
+  filter: brightness(0.9) contrast(1.04);
+}
+
+/* L'astérisque du hero (rouge vif le jour) passe au rouge clair la nuit : même rôle, lisible sur le bordeaux. */
+:root[data-theme='dark'] .hero-spark {
+  color: rgb(var(--c-rouge-deep));
+}

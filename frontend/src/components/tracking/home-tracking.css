@@ -1,7 +1,7 @@
 .home-tracking {
   margin-top: 32px;
-  background: #f2f1e8;
-  border: 1px solid #e3e3d6;
+  background: rgb(var(--c-lilas-pale));
+  border: 1px solid rgb(var(--c-lilas));
   border-radius: 28px;
   overflow: hidden;
   scroll-margin-top: 100px;
@@ -16,7 +16,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  color: #45624d;
+  color: rgb(var(--c-sauge));
   font-size: 9px;
 }
 .home-tracking-copy h2 {
@@ -33,7 +33,7 @@
 .home-tracking-copy > p {
   font-size: 14px;
   line-height: 1.7;
-  color: #535c50;
+  color: rgb(var(--c-nuit-doux));
   max-width: 420px;
 }
 .home-tracking-steps {
@@ -47,7 +47,7 @@
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  color: #4d6655;
+  color: rgb(var(--c-sauge));
   font-size: 12px;
   line-height: 1.5;
 }
@@ -57,7 +57,7 @@
 }
 .home-tracking-steps strong {
   display: block;
-  color: #292f28;
+  color: rgb(var(--c-nuit));
   font-size: 13px;
   margin-bottom: 2px;
 }
@@ -79,8 +79,8 @@
 .home-trip {
   width: 100%;
   padding: 26px;
-  background: #fffdf8;
-  border: 1px solid #e1e3d8;
+  background: rgb(var(--c-carte));
+  border: 1px solid rgb(var(--c-lilas));
   border-radius: 22px;
   box-shadow: 0 10px 30px #283b2406;
 }
@@ -88,7 +88,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #596c55;
+  color: rgb(var(--c-sauge));
 }
 .home-trip-status {
   display: inline-flex;
@@ -96,13 +96,13 @@
   gap: 7px;
   font-size: 12px;
   font-weight: 700;
-  background: #f0efe8;
+  background: rgb(var(--c-lilas-pale));
   padding: 7px 10px;
   border-radius: 20px;
 }
 .home-trip-status.is-live {
-  background: #e5efdf;
-  color: #37523b;
+  background: rgb(var(--c-sauge-pale));
+  color: rgb(var(--c-sauge));
 }
 .home-trip-status > span {
   width: 6px;
@@ -120,12 +120,12 @@
 .home-trip p {
   font-size: 13px;
   line-height: 1.6;
-  color: #626457;
+  color: rgb(var(--c-nuit-doux));
   margin-bottom: 15px;
 }
 .home-trip .home-trip-date {
   font-size: 12px;
-  color: #656a60;
+  color: rgb(var(--c-nuit-doux));
 }
 .home-trip .pill-button {
   margin-top: 6px;
@@ -137,11 +137,11 @@
 .home-empty-icon {
   display: grid;
   place-items: center;
-  background: #eef1e7;
+  background: rgb(var(--c-sauge-wash));
   width: 60px;
   height: 60px;
   border-radius: 20px;
-  color: #4d6655;
+  color: rgb(var(--c-sauge));
 }
 .home-map-toggle {
   display: flex;
@@ -156,8 +156,8 @@
   text-underline-offset: 4px;
 }
 .home-nearby {
-  border-top: 1px solid #dcded1;
-  background: #e9ecdf;
+  border-top: 1px solid rgb(var(--c-lilas));
+  background: rgb(var(--c-sauge-wash));
   padding: 16px 26px;
 }
 .home-nearby-heading {
@@ -193,7 +193,7 @@
 .home-online-switch input {
   width: 20px;
   height: 20px;
-  accent-color: #4d6655;
+  accent-color: rgb(var(--c-sauge));
 }
 .home-nearby p {
   font-size: 12px;
@@ -204,7 +204,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #52604c;
+  color: rgb(var(--c-sauge));
 }
 .home-hero-follow {
   display: flex;
@@ -213,20 +213,20 @@
   align-items: center;
   min-height: 44px;
   margin-top: 8px;
-  color: #513a2a;
+  color: rgb(var(--c-rose-ink));
   font-size: 12px;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 .home-tracking :is(button, a):focus-visible {
-  outline: 3px solid #725440;
+  outline: 3px solid rgb(var(--c-rose-deep));
   outline-offset: 4px;
 }
 .map-placeholder {
   display: grid;
   place-items: center;
-  background: #e8ece2;
-  color: #4d6655;
+  background: rgb(var(--c-sauge-wash));
+  color: rgb(var(--c-sauge));
   min-height: 280px;
 }
 @media (max-width: 760px) {

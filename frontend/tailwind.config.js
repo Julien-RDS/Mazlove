@@ -1,17 +1,33 @@
 // Jetons de design Mazlove.
-// Palette « veilleuse » : fond brume lavande, encre nuit, et un seul accent chaud (abricot)
-// réservé aux moments qui comptent (code d'arrivée, étoiles). Contrastes vérifiés AA.
+// Les couleurs viennent de src/theme.css (variables CSS) : le mode nuit n'a donc pas de variantes
+// « dark: » à écrire composant par composant. Palette : fond brume, encre nuit, accents ROSE
+// (identité) et ROUGE (code d'arrivée, SOS, favori), vert sauge pour « vérifié / en cours ».
+// Les noms désignent des rôles : en mode nuit, `nuit` (encre) devient clair et `brume` (fond) sombre.
+// Contrastes contrôlés par src/lib/theme.test.js (AA : 4,5 pour le texte, 3 pour les icônes).
+const token = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 export default {
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
-        nuit: { DEFAULT: '#22231F', 800: '#3C3D34', doux: '#6B6B62' },
-        brume: '#F8F7F3',
-        lilas: { DEFAULT: '#E2DFD5', pale: '#F0EDE6' },
-        abricot: { DEFAULT: '#F26B35', pale: '#FBE7DA' },
-        sauge: { DEFAULT: '#2F6650', pale: '#DCEBE3' },                  // vérifié, séance en cours
-        alerte: { DEFAULT: '#B4443A', pale: '#F6E1DE' },                 // erreurs, annulation
+        nuit: { DEFAULT: token('nuit'), 800: token('nuit-800'), doux: token('nuit-doux') },
+        'sur-nuit': token('sur-nuit'), // texte sur une surface `nuit`
+        brume: token('brume'), // fond de page
+        carte: token('carte'), // cartes et champs (blanc le jour)
+        lilas: { DEFAULT: token('lilas'), pale: token('lilas-pale'), fort: token('lilas-fort') },
+        rose: {
+          DEFAULT: token('rose'), // surface sous icône blanche, étoiles
+          pale: token('rose-pale'),
+          soft: token('rose-soft'),
+          line: token('rose-line'),
+          deep: token('rose-deep'), // texte rose lisible
+          ink: token('rose-ink'), // texte sur aplat rose
+        },
+        rouge: { DEFAULT: token('rouge'), pale: token('rouge-pale'), deep: token('rouge-deep') },
+        sauge: { DEFAULT: token('sauge'), pale: token('sauge-pale') }, // vérifié, séance en cours
+        alerte: { DEFAULT: token('alerte'), pale: token('alerte-pale') }, // erreurs, annulation
       },
       fontFamily: {
         // Fraunces : serif aux formes douces pour les titres ; Atkinson Hyperlegible : conçue

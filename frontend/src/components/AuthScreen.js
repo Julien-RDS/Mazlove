@@ -38,7 +38,7 @@ export default function AuthScreen({ query, onAuthenticated }) {
           <h1 id="page-title" tabIndex={-1} className="text-4xl font-semibold outline-none">
             {mode === 'login' ? 'Se connecter' : 'Créer un compte'}
           </h1>
-          <div className="grid grid-cols-2 rounded-full bg-white p-1" role="group" aria-label="Choix du formulaire">
+          <div className="grid grid-cols-2 rounded-full bg-carte p-1" role="group" aria-label="Choix du formulaire">
             {[
               ['login', "J'ai déjà un compte"],
               ['register', 'Je suis nouveau'],
@@ -50,7 +50,7 @@ export default function AuthScreen({ query, onAuthenticated }) {
                 onClick={() => setMode(value)}
                 className={cx(
                   'rounded-full py-2 font-bold transition-colors',
-                  mode === value ? 'bg-nuit text-white' : 'text-nuit-doux hover:text-nuit'
+                  mode === value ? 'bg-nuit text-sur-nuit' : 'text-nuit-doux hover:text-nuit'
                 )}
               >
                 {label}
@@ -126,7 +126,7 @@ function LoginForm({ onCodeSent }) {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-5 rounded-3xl bg-white p-5 sm:p-6" noValidate>
+    <form onSubmit={submit} className="space-y-5 rounded-3xl bg-carte p-5 sm:p-6" noValidate>
       {error && <Notice tone="error">{error}</Notice>}
       <Field label="Email" error={fields.email}>
         {(props) => (
@@ -170,7 +170,7 @@ function RegisterForm({ onCodeSent }) {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-5 rounded-3xl bg-white p-5 sm:p-6" noValidate>
+    <form onSubmit={submit} className="space-y-5 rounded-3xl bg-carte p-5 sm:p-6" noValidate>
       {error && <Notice tone="error">{error}</Notice>}
 
       <fieldset className="space-y-2">
@@ -284,7 +284,7 @@ function CodeStep({ credentials, info, onBack, onVerified }) {
           event.preventDefault();
           verify(code);
         }}
-        className="space-y-5 rounded-3xl bg-white p-5 sm:p-6"
+        className="space-y-5 rounded-3xl bg-carte p-5 sm:p-6"
         noValidate
       >
         <p>

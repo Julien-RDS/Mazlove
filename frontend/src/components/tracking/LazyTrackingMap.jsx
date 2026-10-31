@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, Component } from "react";
 import "./tracking.css";
+import { useTheme } from "../../lib/theme";
 const Map = lazy(() => import("./TrackingMap"));
 class MapBoundary extends Component {
   state = { failed: false };
@@ -18,6 +19,8 @@ class MapBoundary extends Component {
   }
 }
 export default function LazyTrackingMap(props) {
+  // Le fond de carte (clair ou sombre) est choisi à la création : changer de thème recrée la carte.
+  const theme = useTheme();
   return (
     <MapBoundary>
       <Suspense
@@ -27,7 +30,7 @@ export default function LazyTrackingMap(props) {
           </div>
         }
       >
-        <Map {...props} />
+        <Map key={theme} {...props} />
       </Suspense>
     </MapBoundary>
   );

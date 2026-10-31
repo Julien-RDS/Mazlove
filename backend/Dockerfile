@@ -30,4 +30,7 @@ VOLUME /app/uploads
 EXPOSE 3001
 # La JVM dimensionne son tas sur la mémoire du conteneur, pas sur celle de l'hôte.
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75"
+# Commit de l'image (docker build --build-arg GIT_SHA=…) : lu par scripts/check-served-version.sh.
+ARG GIT_SHA=unknown
+LABEL org.opencontainers.image.revision=$GIT_SHA
 ENTRYPOINT ["java", "-jar", "app.jar"]
