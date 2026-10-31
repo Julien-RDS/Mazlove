@@ -6,41 +6,58 @@ import { useLiveTracking } from "../../hooks/useLiveTracking";
 import { useProviderBroadcaster } from "../../hooks/useProviderBroadcaster";
 const JourneyContext = createContext(null);
 export const useProviderJourney = () => useContext(JourneyContext);
-function ActiveJourney({ session, token, providerId, children }) {
-  const live = useLiveTracking(session.id, token);
-  const state = live.status || session.status;
-  const broadcaster = useProviderBroadcaster(
-    session.id,
-    token,
-    state === "EN_ROUTE" && !live.authExpired,
-    providerId,
+const labels = {
+  sharing: "GPS actif",
+  starting: "Préparation du GPS",
+  locating: "Localisation en cours",
+  weak: "Signal GPS faible",
+  reconnecting: "Reconnexion en cours",
+  denied: "Localisation non autorisée",
+  unsupported: "GPS indisponible",
+  expired: "Session expirée",
+  blocked: "GPS actif dans un autre onglet",
+  transferred: "Suivi transféré vers un autre onglet",
+  background: "Application en arrière-plan",
+  idle: "Suivi en attente",
+  error: "Trajet indisponible",
+};
+export function ProviderGpsStatus({ journey }) {
+  if (!journey) return <p role="status">Préparation du suivi…</p>;
+  const retry = ["blocked", "transferred", "denied", "error"].includes(
+    journey.phase,
   );
-  const value = { ...broadcaster, id: session.id };
   return (
-    <JourneyContext.Provider value={value}>
-      {state === "EN_ROUTE" && (
-        <aside
-          className="journey-banner"
-          aria-label="Partage de position actif"
-        >
-          <p>
-            📍 Votre position est partagée avec {session.clientName}. Gardez
-            l’application ouverte et l’écran allumé.
-          </p>
-          <a href={`#/seances/${session.id}`}>
-            Ouvrir la console / arrêter le partage
-          </a>
-          {live.authExpired && <p role="alert">{live.error}</p>}
-          {broadcaster.error && <p role="alert">{broadcaster.error}</p>}
-          {broadcaster.error && (
-            <button type="button" onClick={broadcaster.takeover}>
-              Reprendre le suivi dans cet onglet
-            </button>
-          )}
-        </aside>
+    <div className="journey-state" role="status">
+      <strong>{labels[journey.phase] || "GPS indisponible"}</strong>
+      {journey.error && <p>{journey.error}</p>}
+      {retry && (
+        <button type="button" onClick={journey.takeover}>
+          {["blocked", "transferred"].includes(journey.phase)
+            ? "Reprendre le suivi dans cet onglet"
+            : journey.phase === "error"
+              ? "Réessayer le chargement du trajet"
+              : "Réessayer la localisation"}
+        </button>
       )}
-      {children}
-    </JourneyContext.Provider>
+    </div>
+  );
+}
+export function JourneyNotice({ currentSessionId }) {
+  const journey = useProviderJourney();
+  if (
+    !journey ||
+    (journey.id != null && String(journey.id) === String(currentSessionId))
+  )
+    return null;
+  return (
+    <aside className="journey-banner" aria-label="État du suivi GPS">
+      <ProviderGpsStatus journey={journey} />
+      {journey.id && (
+        <a href={`#/seances/${journey.id}`}>
+          Trajet vers {journey.clientName || "votre rendez-vous"} →
+        </a>
+      )}
+    </aside>
   );
 }
 export default function ProviderJourney({
@@ -54,8 +71,20 @@ export default function ProviderJourney({
     session: null,
     error: "",
   });
+  const available = !!(enabled && token && user?.providerId);
+  const session = available && record.token === token ? record.session : null;
+  const live = useLiveTracking(session?.id, available ? token : null);
+  const travelling =
+    session?.status === "EN_ROUTE" &&
+    (!live.status || live.status === "EN_ROUTE");
+  const broadcaster = useProviderBroadcaster(
+    session?.id,
+    token,
+    travelling && !live.authExpired,
+    user?.id,
+  );
   useEffect(() => {
-    if (!enabled || !token || !user?.providerId) return;
+    if (!available) return;
     let alive = true,
       revision = 0;
     const poll = startVisiblePolling(
@@ -75,21 +104,40 @@ export default function ProviderJourney({
         }
         setRecord({ token, session, error: "" });
       },
-      15000,
+      30000,
       {
         onError: (error) => {
-          if (alive) setRecord({ token, session: null, error: error.message });
+          if (!alive) return;
+          // A temporary REST outage must not tear down a healthy GPS watch or the current screen.
+          setRecord((previous) => ({
+            token,
+            session:
+              error.status === 401 || error.status === 403
+                ? null
+                : previous.token === token
+                  ? previous.session
+                  : null,
+            error: error.message,
+          }));
         },
       },
     );
     const refresh = (e) => {
       revision++;
-      if (e.detail?.token === token && e.detail.session)
-        setRecord({
-          token,
-          session:
-            e.detail.session.status === "EN_ROUTE" ? e.detail.session : null,
-          error: "",
+      const changed = e.detail?.token === token ? e.detail.session : null;
+      if (changed)
+        setRecord((previous) => {
+          if (
+            changed.viewerRole === "PROVIDER" &&
+            changed.status === "EN_ROUTE"
+          )
+            return { token, session: changed, error: "" };
+          if (
+            previous.session?.id === changed.id &&
+            changed.status !== "EN_ROUTE"
+          )
+            return { token, session: null, error: "" };
+          return previous;
         });
       poll.refresh();
     };
@@ -99,29 +147,31 @@ export default function ProviderJourney({
       poll.stop();
       window.removeEventListener(SESSION_UPDATED_EVENT, refresh);
     };
-  }, [token, user?.id, user?.providerId, enabled]);
-  const session =
-    record.token === token && enabled && user?.providerId
-      ? record.session
-      : null;
-  if (session?.status === "EN_ROUTE")
-    return (
-      <ActiveJourney
-        key={`${user.id}:${session.id}:${token}`}
-        session={session}
-        token={token}
-        providerId={user.id}
-      >
-        {children}
-      </ActiveJourney>
-    );
+  }, [available, token, user?.id]);
+  const journey = travelling
+    ? {
+        ...broadcaster,
+        id: session.id,
+        clientName: session.clientName,
+        ...(live.authExpired ? { phase: "expired", error: live.error } : {}),
+      }
+    : null;
+  // Keep the same component tree through departure, arrival, polling and retries.
   return (
-    <JourneyContext.Provider value={null}>
-      {record.token === token && enabled && record.error && (
-        <p className="journey-banner" role="alert">
-          Le suivi GPS est suspendu : {record.error}
-        </p>
-      )}
+    <JourneyContext.Provider
+      value={
+        journey ||
+        (available && record.token === token && record.error
+          ? {
+              id: null,
+              phase: "error",
+              error: record.error,
+              takeover: () =>
+                window.dispatchEvent(new Event(SESSION_UPDATED_EVENT)),
+            }
+          : null)
+      }
+    >
       {children}
     </JourneyContext.Provider>
   );

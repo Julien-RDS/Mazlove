@@ -5,6 +5,7 @@ import com.mazlove.backend.dto.UserUpdateDTO;
 import com.mazlove.backend.models.Review;
 import com.mazlove.backend.models.User;
 import com.mazlove.backend.repository.ProviderRepository;
+import com.mazlove.backend.repository.SessionRepository;
 import com.mazlove.backend.repository.UserRepository;
 import com.mazlove.backend.util.Paging;
 import java.util.ArrayList;
@@ -26,15 +27,18 @@ public class UserService implements UserDetailsService {
 
   private final UserRepository userRepository;
   private final ProviderRepository providerRepository;
+  private final SessionRepository sessionRepository;
   private final SessionMapper sessionMapper;
 
   public UserService(
       UserRepository userRepository,
       ProviderRepository providerRepository,
-      SessionMapper sessionMapper) {
+      SessionMapper sessionMapper,
+      SessionRepository sessionRepository) {
     this.userRepository = userRepository;
     this.providerRepository = providerRepository;
     this.sessionMapper = sessionMapper;
+    this.sessionRepository = sessionRepository;
   }
 
   @Override
@@ -68,7 +72,7 @@ public class UserService implements UserDetailsService {
         userRepository
             .findByEmail(email)
             .orElseThrow(() -> new UsernameNotFoundException("Compte introuvable"));
-    return userRepository
+    return sessionRepository
         .findActiveSession(user.getId(), providerOnly, java.time.LocalDateTime.now())
         .map(s -> sessionMapper.toDTO(s, user))
         .orElse(null);

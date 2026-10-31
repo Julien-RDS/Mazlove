@@ -1,4 +1,4 @@
-import ProviderJourney from "./tracking/ProviderJourney";
+import ProviderJourney, { JourneyNotice } from "./tracking/ProviderJourney";
 import React, {
   lazy,
   Suspense,
@@ -323,6 +323,9 @@ export default function CuddleApp() {
             </div>
           </div>
         </header>
+        <JourneyNotice
+          currentSessionId={route.name === "session" ? route.params.id : null}
+        />
 
         <main id="contenu" tabIndex={-1} className="shell-main">
           <Suspense fallback={<Spinner />}>{renderScreen()}</Suspense>

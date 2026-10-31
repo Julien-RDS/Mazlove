@@ -2,6 +2,8 @@
 
 Livraison du 30 octobre 2026, à partir de `b83090a`. Aucun Docker, service de données ou déploiement lancé. [Production et retour arrière](PRODUCTION.md) · [Prompt pour la suite](NEXT-PROMPT.md).
 
+Ce bilan décrit la livraison initiale. Les corrections GPS du 31 octobre, le comportement lors des pannes REST et les tests désormais exécutés avec PostgreSQL/Redis/STOMP sont détaillés dans [GPS-OPTIMIZATION.md](GPS-OPTIMIZATION.md).
+
 ## Comportement livré
 
 `ProviderJourney`, au-dessus des écrans de l’application, retrouve le trajet prestataire via `/api/users/me/provider-trip`. Le GPS continue pendant les changements d’écran et reprend après rechargement d’un trajet EN_ROUTE, sous réserve de la permission du navigateur. L’arrivée, l’annulation, la déconnexion, le changement de compte et l’expiration STOMP libèrent l’émetteur, son watcher, son intervalle, son Wake Lock et sa connexion. Une panne de lecture de l’état serveur suspend le GPS avec un message ; la reprise suit le prochain rafraîchissement réussi.

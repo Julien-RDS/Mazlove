@@ -44,7 +44,7 @@ function ActiveTrip({ session, token }) {
         })}
       </p>
       {status === "EN_ROUTE" ? (
-        <EtaCard {...live} />
+        <EtaCard {...live} self={provider} />
       ) : (
         <p>
           {status === "ARRIVED"

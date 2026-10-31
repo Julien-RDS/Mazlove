@@ -61,7 +61,9 @@ export default function TripPanel({
           stale={live.stale}
         />
       )}
-      {status === "EN_ROUTE" && <EtaCard {...live} />}
+      {status === "EN_ROUTE" && (
+        <EtaCard {...live} self={session.viewerRole === "PROVIDER"} />
+      )}
       <p role="status">{live.message || live.error}</p>
       {session.viewerRole === "PROVIDER" && (
         <ProviderConsole

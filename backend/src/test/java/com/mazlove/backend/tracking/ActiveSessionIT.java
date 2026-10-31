@@ -2,7 +2,7 @@ package com.mazlove.backend.tracking;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.mazlove.backend.repository.UserRepository;
+import com.mazlove.backend.repository.SessionRepository;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @EnabledIfEnvironmentVariable(named = "MAZLOVE_STOMP_IT", matches = "true")
 class ActiveSessionIT {
   @Autowired JdbcTemplate db;
-  @Autowired UserRepository users;
+  @Autowired SessionRepository sessions;
   @Autowired EntityManager em;
   long client, provider, user, stranger;
   LocalDateTime now = LocalDateTime.now();
@@ -60,7 +60,7 @@ class ActiveSessionIT {
 
   long active(long who, boolean only) {
     em.clear();
-    return users.findActiveSession(who, only, now).orElseThrow().getId();
+    return sessions.findActiveSession(who, only, now).orElseThrow().getId();
   }
 
   @Test
@@ -70,8 +70,8 @@ class ActiveSessionIT {
     assertEquals(live, active(client, false));
     assertEquals(live, active(user, false));
     assertEquals(live, active(user, true));
-    assertTrue(users.findActiveSession(stranger, false, now).isEmpty());
-    assertTrue(users.findActiveSession(client, true, now).isEmpty());
+    assertTrue(sessions.findActiveSession(stranger, false, now).isEmpty());
+    assertTrue(sessions.findActiveSession(client, true, now).isEmpty());
   }
 
   @Test
@@ -93,6 +93,6 @@ class ActiveSessionIT {
     session("PENDING", now.minusDays(2));
     session("CANCELLED", now.plusDays(1));
     session("DONE", now.plusDays(2));
-    assertTrue(users.findActiveSession(client, false, now).isEmpty());
+    assertTrue(sessions.findActiveSession(client, false, now).isEmpty());
   }
 }

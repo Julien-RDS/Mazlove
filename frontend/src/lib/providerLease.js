@@ -30,6 +30,7 @@ export function providerLease(
     channel?.close();
     blocked(
       "Ce navigateur ne permet pas de sécuriser le partage entre onglets. Utilisez un navigateur récent en HTTPS.",
+      "unsupported",
     );
     return { stop: () => {}, takeover: () => {} };
   }

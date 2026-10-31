@@ -287,6 +287,16 @@ class TrackingReliabilityIT {
 
   @Test
   void departureFreezesMeetingPointAndOnlyOneTripMayBeEnRoute() {
+    for (String path : List.of("/api/users/me/active-session", "/api/users/me/provider-trip")) {
+      var active = request(path, HttpMethod.GET, "sophie@test.com", null);
+      assertEquals(200, active.getStatusCode().value());
+      assertEquals(id, ((Number) active.getBody().get("id")).longValue());
+      assertEquals("PROVIDER", active.getBody().get("viewerRole"));
+    }
+    var client = request("/api/users/me/active-session", HttpMethod.GET, "alice@test.com", null);
+    assertEquals(200, client.getStatusCode().value());
+    assertEquals(id, ((Number) client.getBody().get("id")).longValue());
+    assertEquals("CLIENT", client.getBody().get("viewerRole"));
     var changed =
         request(
             "/api/sessions/" + id + "/meeting-point",

@@ -4,6 +4,7 @@ import com.mazlove.backend.models.Session;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,6 +12,24 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface SessionRepository extends JpaRepository<Session, Long> {
+  @Query(
+      value =
+          """
+SELECT s.* FROM sessions s JOIN providers p ON p.id=s.provider_id
+WHERE ((:providerOnly=false AND s.client_id=:userId) OR p.user_id=:userId)
+  AND ((:providerOnly=true AND s.status='EN_ROUTE') OR (:providerOnly=false AND
+    (s.status IN ('EN_ROUTE','ARRIVED','IN_PROGRESS') OR
+     (s.status IN ('ACCEPTED','PENDING') AND s.datetime + s.duration * INTERVAL '1 hour' > :now))))
+ORDER BY CASE s.status WHEN 'EN_ROUTE' THEN 0 WHEN 'ARRIVED' THEN 1
+  WHEN 'IN_PROGRESS' THEN 2 ELSE 3 END, s.datetime, s.id
+LIMIT 1
+""",
+      nativeQuery = true)
+  Optional<Session> findActiveSession(
+      @Param("userId") Long userId,
+      @Param("providerOnly") boolean providerOnly,
+      @Param("now") java.time.LocalDateTime now);
+
   @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
   @Query("select s from Session s where s.id=:id")
   java.util.Optional<Session> lockById(@Param("id") Long id);

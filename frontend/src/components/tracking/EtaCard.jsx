@@ -1,5 +1,6 @@
 import React from "react";
 export default function EtaCard({
+  self = false,
   pos,
   stale,
   connected,
@@ -9,9 +10,16 @@ export default function EtaCard({
   return (
     <div role="status">
       {!connected && <p>Reconnexion…</p>}
+      {!pos && (
+        <p>
+          {self
+            ? "En attente de votre première position…"
+            : "En attente de la position du prestataire…"}
+        </p>
+      )}
       {pos && (
         <p>
-          {providerName} est à{" "}
+          {self ? "Vous êtes" : `${providerName} est`} à{" "}
           {(pos.distanceMeters / 1000).toLocaleString("fr-FR", {
             maximumFractionDigits: 1,
           })}{" "}

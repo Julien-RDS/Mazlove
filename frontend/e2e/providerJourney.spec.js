@@ -312,7 +312,7 @@ test("changement de compte dans un autre onglet : libère le GPS et retire le tr
   await expect(page.getByLabel("Compte de Nouveau compte")).toBeVisible();
   await expect.poll(() => active(page)).toBe(0);
   await expect(
-    page.getByRole("complementary", { name: "Partage de position actif" }),
+    page.getByRole("complementary", { name: "État du suivi GPS" }),
   ).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: "Ouvrir ma console" }),
@@ -350,4 +350,92 @@ test("une réponse de trajet retardée après l’arrivée ne redémarre pas le 
   await page.waitForTimeout(500);
   expect(await page.evaluate(() => window.gpsMetrics.started)).toBe(1);
   expect(await active(page)).toBe(0);
+});
+
+test("un trajet indisponible au chargement affiche une reprise accessible depuis l’accueil", async ({
+  context,
+  page,
+}) => {
+  await fixture(context);
+  await page.route(
+    "**/api/users/me/provider-trip",
+    (route) =>
+      route.fulfill({ status: 503, json: { message: "Indisponible" } }),
+    { times: 1 },
+  );
+  await page.goto("/");
+  await expect(
+    page.getByText("Trajet indisponible", { exact: true }),
+  ).toBeVisible();
+  expect(await active(page)).toBe(0);
+  await page
+    .getByRole("button", { name: "Réessayer le chargement du trajet" })
+    .click();
+  await expect.poll(() => active(page)).toBe(1);
+  await expect(page.getByText("GPS actif", { exact: true })).toBeVisible();
+});
+
+test("départ sans recréer la carte, un seul abonnement partagé et continuité lors d’une panne REST", async ({
+  context,
+  page,
+}) => {
+  const f = await fixture(context, { initial: "ACCEPTED" });
+  await page.goto("/#/seances/42");
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible({
+    timeout: 15000,
+  });
+  await page
+    .locator(".maplibregl-canvas")
+    .evaluate((el) => (el.dataset.preserved = "yes"));
+  await page.getByRole("button", { name: "Je pars", exact: true }).click();
+  await expect.poll(() => active(page)).toBe(1);
+  await expect(page.locator(".maplibregl-canvas")).toHaveAttribute(
+    "data-preserved",
+    "yes",
+  );
+  const subscriptions = () =>
+    f.sockets
+      .filter((s) => !s.closed)
+      .flatMap((s) => [...s.subscriptions.values()])
+      .filter((d) => d === "/topic/tracking.42").length;
+  await expect.poll(subscriptions).toBe(1);
+  await page.evaluate(() => (location.hash = "/"));
+  await expect(
+    page.getByRole("link", { name: "Ouvrir ma console" }),
+  ).toBeVisible();
+  await expect.poll(subscriptions).toBe(1);
+  await page.route("**/api/users/me/provider-trip", (r) =>
+    r.fulfill({ status: 503, json: { message: "Indisponible" } }),
+  );
+  await page.evaluate(() =>
+    window.dispatchEvent(new Event("mazlove:session-updated")),
+  );
+  await page.waitForTimeout(300);
+  expect(await active(page)).toBe(1);
+  expect(await page.evaluate(() => window.gpsMetrics.started)).toBe(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("une connexion GPS en préparation n’affirme pas que la position est partagée", async ({
+  context,
+  page,
+}) => {
+  await fixture(context);
+  await page.addInitScript(() => {
+    navigator.geolocation.watchPosition = () => 77;
+    navigator.geolocation.getCurrentPosition = () => {};
+  });
+  await page.goto("/");
+  await expect(
+    page.getByText("Localisation en cours", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("GPS actif", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Reprendre le suivi dans cet onglet" }),
+  ).toHaveCount(0);
 });

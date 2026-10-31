@@ -25,7 +25,7 @@ function TrackingMap({
     follow = useRef(true),
     pick = useRef(onPick),
     nearby = useRef(new Map()),
-    initialCenter = useRef(center);
+    initialCenter = useRef(pos || meetingPoint || center);
   pick.current = onPick;
   const [moved, setMoved] = useState(false),
     [ready, setReady] = useState(false),
@@ -56,10 +56,20 @@ function TrackingMap({
             "Fond de carte indisponible ; le suivi textuel reste accessible.",
           );
       });
-      m.on("dragstart", () => {
+      // Camera events carry originalEvent for mouse/touch/keyboard and navigation controls.
+      // Programmatic easeTo/fitBounds must not disable follow themselves.
+      const stopFollowing = (event) => {
+        if (!event.originalEvent) return;
         follow.current = false;
         setMoved(true);
-      });
+      };
+      for (const event of [
+        "dragstart",
+        "zoomstart",
+        "rotatestart",
+        "pitchstart",
+      ])
+        m.on(event, stopFollowing);
       m.on("click", (e) =>
         pick.current?.({
           lat: e.lngLat.lat,
@@ -96,14 +106,17 @@ function TrackingMap({
       return;
     }
     if (!meeting.current)
-      meeting.current = new maplibregl.Marker({ color: "#c96b46" }).addTo(
-        map.current,
-      );
+      meeting.current = new maplibregl.Marker({ color: "#c96b46" })
+        .setLngLat([meetingPoint.lng, meetingPoint.lat])
+        .addTo(map.current);
     meeting.current.setLngLat([meetingPoint.lng, meetingPoint.lat]);
-    if (!last.current)
+    if (!last.current && follow.current)
       map.current.easeTo({
         center: [meetingPoint.lng, meetingPoint.lat],
         zoom: 14,
+        duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? 0
+          : 900,
       });
   }, [ready, meetingPoint?.lat, meetingPoint?.lng]);
   useEffect(() => {
@@ -129,30 +142,40 @@ function TrackingMap({
         .setLngLat(to)
         .addTo(m);
     }
-    marker.current.setRotation(
-      pos.heading ?? (last.current ? heading(last.current.coords, to) : 0),
-    );
-    cancel.current?.();
-    const current = marker.current.getLngLat();
-    cancel.current = animateMarker(
-      marker.current,
-      [current.lng, current.lat],
-      to,
-      last.current ? pos.ts - last.current.ts : 1000,
-    );
+    const previous = last.current;
+    const changed =
+      !previous || previous.coords[0] !== to[0] || previous.coords[1] !== to[1];
+    // A fresh timestamp or ETA does not mean the person moved. Keep the bearing
+    // when stationary instead of deriving a north-facing bearing from identical points.
+    if (Number.isFinite(pos.heading)) marker.current.setRotation(pos.heading);
+    else if (previous && changed)
+      marker.current.setRotation(heading(previous.coords, to));
+    if (changed) {
+      cancel.current?.();
+      const current = marker.current.getLngLat();
+      if (!fresh)
+        cancel.current = animateMarker(
+          marker.current,
+          [current.lng, current.lat],
+          to,
+          previous ? pos.ts - previous.ts : 1000,
+        );
+      const duration = window.matchMedia("(prefers-reduced-motion: reduce)")
+        .matches
+        ? 0
+        : 900;
+      if (follow.current) {
+        if (fresh && meetingPoint)
+          m.fitBounds([to, [meetingPoint.lng, meetingPoint.lat]], {
+            padding: 60,
+            maxZoom: 15,
+            duration,
+          });
+        else m.easeTo({ center: to, duration });
+      }
+    }
     last.current = { coords: to, ts: pos.ts };
-    const duration = window.matchMedia("(prefers-reduced-motion: reduce)")
-      .matches
-      ? 0
-      : 900;
-    if (fresh && meetingPoint)
-      m.fitBounds([to, [meetingPoint.lng, meetingPoint.lat]], {
-        padding: 60,
-        maxZoom: 15,
-        duration,
-      });
-    else if (follow.current) m.easeTo({ center: to, duration });
-  }, [ready, pos]);
+  }, [ready, pos?.lat, pos?.lng, pos?.heading, pos?.ts]);
   useEffect(() => {
     marker.current?.getElement().classList.toggle("stale", !!stale);
   }, [ready, pos, stale]);

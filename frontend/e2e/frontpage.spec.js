@@ -127,6 +127,10 @@ test("client : ETA, bonne séance et carte chargée uniquement à l’ouverture"
   await page.getByRole("button", { name: "Afficher le trajet ici" }).click();
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
   expect(requests.some((u) => /TrackingMap-.*\.js/.test(u))).toBe(true);
+  await page.locator(".maplibregl-ctrl-zoom-in").click();
+  await expect(page.getByRole("button", { name: "Recentrer" })).toBeVisible();
+  await page.getByRole("button", { name: "Recentrer" }).click();
+  await expect(page.getByRole("button", { name: "Recentrer" })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 test("disponibilités : centre cohérent et résultat vide explicite", async ({

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { trackingApi as api } from "../../lib/trackingApi";
-import { useProviderJourney } from "./ProviderJourney";
+import { useProviderJourney, ProviderGpsStatus } from "./ProviderJourney";
 import { SESSION_UPDATED_EVENT } from "../../lib/sessionTracking";
 import ConsentModal from "./ConsentModal";
 export default function ProviderConsole({
@@ -18,7 +18,7 @@ export default function ProviderConsole({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const journey = useProviderJourney();
-  const gpsError = simulated ? "" : journey?.error;
+
   useEffect(() => {
     api("/consents", token)
       .then((x) => setConsent(x.granted))
@@ -118,10 +118,15 @@ export default function ProviderConsole({
       )}
       {status === "EN_ROUTE" && (
         <>
-          <p>
-            📍 Votre position est partagée avec {clientName} jusqu’à votre
-            arrivée.
-          </p>
+          {simulated ? (
+            <p>Trajet simulé — aucun GPS réel.</p>
+          ) : (
+            <ProviderGpsStatus
+              journey={
+                journey?.id === id || journey?.id == null ? journey : null
+              }
+            />
+          )}
           <button disabled={busy} onClick={() => action("arrived")}>
             Je suis arrivé
           </button>
@@ -157,9 +162,9 @@ export default function ProviderConsole({
           Terminer la séance
         </button>
       )}
-      {(error || gpsError) && (
+      {error && (
         <p role="alert" className="tracking-error">
-          {error || gpsError}
+          {error}
         </p>
       )}
     </section>
