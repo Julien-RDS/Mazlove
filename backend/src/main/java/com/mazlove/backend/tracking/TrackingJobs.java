@@ -15,6 +15,7 @@ import org.springframework.transaction.event.*;
 @Component
 @RequiredArgsConstructor
 public class TrackingJobs {
+  private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(TrackingJobs.class);
   private final com.mazlove.backend.service.EmailService emailService;
   private final JdbcTemplate db;
   private final TrackingStore store;
@@ -53,7 +54,19 @@ public class TrackingJobs {
                         "Votre séance Mazlove est terminée",
                         "La séance est terminée. Le partage de position est arrêté et les liens de"
                             + " suivi sont révoqués. Merci de votre confiance.");
-                  } catch (org.springframework.mail.MailException ignored) {
+                  } catch (org.springframework.mail.MailException failure) {
+                    log.warn(
+                        "Échec d'envoi de la confirmation de fin de séance : {}",
+                        failure.getClass().getSimpleName());
+                    ws.convertAndSendToUser(
+                        recipient,
+                        "/queue/notifications",
+                        Map.of(
+                            "sessionId",
+                            e.id(),
+                            "message",
+                            "L’envoi de l’email de confirmation n’a pas pu être confirmé. Les"
+                                + " détails restent disponibles dans Mes séances."));
                   }
               for (String email :
                   java.util.List.of(s.getClient().getEmail(), s.getProvider().getUser().getEmail()))

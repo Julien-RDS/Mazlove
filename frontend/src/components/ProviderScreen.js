@@ -547,6 +547,7 @@ function BookingSheet({
   );
 
   const submit = async () => {
+    if (!day || !time || !meetingPoint) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -585,6 +586,14 @@ function BookingSheet({
                   ? `${formatLongDate(day)}, ${time} – ${endTime}`
                   : "Choisissez un jour et une heure"}
               </p>
+              <p className="mt-1 text-xs text-nuit-doux">
+                Durée : {duration} h
+              </p>
+              <p className="mt-1 text-xs text-nuit-doux">
+                {meetingPoint
+                  ? `Lieu : ${meetingPoint.label || "point choisi sur la carte"}`
+                  : "Choisissez un point de rendez-vous pour confirmer."}
+              </p>
             </div>
             <p className="shrink-0 text-xl font-bold">
               {chosenService ? `${chosenService.price} €` : "Tarif à convenir"}
@@ -597,7 +606,7 @@ function BookingSheet({
           <Button
             size="lg"
             className="w-full"
-            disabled={!day || !time}
+            disabled={!day || !time || !meetingPoint}
             loading={submitting}
             onClick={submit}
           >

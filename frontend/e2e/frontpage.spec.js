@@ -85,6 +85,108 @@ async function fixtures(
   });
   return requests;
 }
+
+test("réservation : le lieu est obligatoire et figure dans la confirmation", async ({
+  page,
+}) => {
+  await fixtures(page, { signed: true });
+  const availability = [
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+    "SATURDAY",
+    "SUNDAY",
+  ].map((dayOfWeek) => ({ dayOfWeek, startTime: "00:00", endTime: "23:59" }));
+  await page.route("**/api/providers/7", (r) =>
+    r.fulfill({
+      json: {
+        id: 7,
+        userName: "Sophie",
+        category: "Praticienne",
+        bio: "Bienvenue",
+        images: [],
+        availability,
+        reviewCount: 0,
+        rating: 0,
+      },
+    }),
+  );
+  await page.route("**/api/providers/7/reviews", (r) =>
+    r.fulfill({ json: [] }),
+  );
+  await page.route("**/api/providers/7/services", (r) =>
+    r.fulfill({ json: [{ id: 3, name: "Séance", duration: 1, price: 60 }] }),
+  );
+  await page.route("**/api/geocode?**", (r) =>
+    r.fulfill({
+      json: {
+        features: [
+          {
+            geometry: { coordinates: [2.347, 48.8584] },
+            properties: { label: "Châtelet, Paris" },
+          },
+        ],
+      },
+    }),
+  );
+  let sent;
+  await page.route("**/api/sessions", (r) => {
+    sent = r.request().postDataJSON();
+    return r.fulfill({ json: { id: 42 } });
+  });
+  await page.goto("/#/praticien/7");
+  await page.getByRole("button", { name: "Choisir mon créneau" }).click();
+  const confirm = page.getByRole("button", {
+    name: "Confirmer la réservation",
+  });
+  await page
+    .locator("fieldset")
+    .filter({ hasText: "Choisissez votre horaire" })
+    .getByRole("button")
+    .first()
+    .click();
+  await expect(confirm).toBeDisabled();
+  await expect(
+    page.getByText("Choisissez un point de rendez-vous pour confirmer."),
+  ).toBeVisible();
+  await page.getByLabel("Rechercher une adresse").fill("Châtelet");
+  await page.getByRole("button", { name: "Châtelet, Paris" }).click();
+  await expect(page.getByText("Lieu : Châtelet, Paris")).toBeVisible();
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+  expect(sent.meetingPoint).toEqual({
+    lng: 2.347,
+    lat: 48.8584,
+    label: "Châtelet, Paris",
+  });
+  expect(sent.serviceItemId).toBe(3);
+});
+test("prestataire : les demandes à traiter sont visibles en premier", async ({
+  page,
+}) => {
+  await fixtures(page, { signed: true, provider: true });
+  await page.route("**/api/users/me/sessions?**", (r) =>
+    r.fulfill({
+      json: [
+        {
+          id: 9,
+          status: "PENDING",
+          datetime: "2026-12-30T17:00:00",
+          duration: 1,
+          clientName: "Alice",
+          viewerRole: "PROVIDER",
+        },
+      ],
+    }),
+  );
+  await page.goto("/#/seances");
+  await expect(page.getByText("1 demande attend votre réponse")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Examiner la prochaine demande" }),
+  ).toHaveAttribute("href", "#/seances/9");
+});
 test("visiteur : présentation et connexion, sans charger la carte ni les données privées", async ({
   page,
 }) => {

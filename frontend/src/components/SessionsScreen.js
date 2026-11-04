@@ -63,6 +63,7 @@ export function SessionsScreen({ user }) {
   }, [sessions]);
 
   const list = tab === "upcoming" ? upcoming : past;
+  const pending = user.role === "PROVIDER" ? upcoming.filter((s) => s.status === "PENDING") : [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 pt-2">
@@ -84,6 +85,14 @@ export function SessionsScreen({ user }) {
           }
         >
           Les clients ne peuvent pas encore vous trouver ni réserver.
+        </Notice>
+      )}
+
+      {status === "ready" && pending.length > 0 && (
+        <Notice title={`${pending.length} ${pending.length === 1 ? "demande attend" : "demandes attendent"} votre réponse`}>
+          <a className="font-bold underline" href={`#/seances/${pending[0].id}`}>
+            Examiner la prochaine demande
+          </a>
         </Notice>
       )}
 

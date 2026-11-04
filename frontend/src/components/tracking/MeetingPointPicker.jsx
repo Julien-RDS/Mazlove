@@ -7,6 +7,8 @@ export default function MeetingPointPicker({ value, onChange, token }) {
     [error, E] = useState("");
   useEffect(() => {
     let active = true;
+    E("");
+    R([]);
     if (query.length < 3) {
       R([]);
       return;
@@ -14,7 +16,12 @@ export default function MeetingPointPicker({ value, onChange, token }) {
     const t = setTimeout(
       () =>
         api(`/geocode?q=${encodeURIComponent(query)}`, token)
-          .then((r) => active && R(r.features || []))
+          .then((r) => {
+            if (active) {
+              R(r.features || []);
+              E("");
+            }
+          })
           .catch((e) => active && E(e.message)),
       400,
     );
@@ -53,7 +60,11 @@ export default function MeetingPointPicker({ value, onChange, token }) {
           </li>
         ))}
       </ul>
-      <p>{value?.label || "Choisissez une adresse ou cliquez sur la carte."}</p>
+      <p>
+        {value
+          ? value.label || "Point sélectionné sur la carte."
+          : "Choisissez une adresse ou cliquez sur la carte."}
+      </p>
       <TrackingMap meetingPoint={value} onPick={onChange} />
       <p role="status">{error}</p>
     </section>
