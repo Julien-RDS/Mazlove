@@ -8,6 +8,40 @@ import org.springframework.mock.env.MockEnvironment;
 
 class DevProfileGuardTest {
   @Test
+  void productionRejectsOtpLoggingAndDemoAtContextStartup() {
+    for (String config : java.util.List.of("logs", "demo")) {
+      try (var context = new AnnotationConfigApplicationContext()) {
+        context
+            .getEnvironment()
+            .setActiveProfiles(
+                config.equals("demo") ? new String[] {"prod", "demo"} : new String[] {"prod"});
+        context
+            .getEnvironment()
+            .getPropertySources()
+            .addFirst(
+                new org.springframework.core.env.MapPropertySource(
+                    "test",
+                    java.util.Map.of(
+                        "mfa.dev-log-otp", config.equals("logs") ? "true" : "false",
+                        "jwt.secret", "a-private-production-key-at-least-thirty-two-bytes",
+                        "cors.allowed-origins", "https://mazlove.example",
+                        "tracking.public-base-url", "https://mazlove.example")));
+        context.register(DevProfileGuard.class);
+        assertThrows(org.springframework.beans.BeansException.class, context::refresh);
+      }
+    }
+  }
+
+  @Test
+  void twoFactorCannotBeDisabledInTestOrDefaultProfile() {
+    for (String profile : java.util.List.of("test", "default")) {
+      var env = new MockEnvironment().withProperty("auth.2fa-enabled", "false");
+      env.setActiveProfiles(profile);
+      assertThrows(IllegalStateException.class, () -> new DevProfileGuard(env));
+    }
+  }
+
+  @Test
   void mixedProfilesFailClosed() {
     var env = new MockEnvironment();
     env.setActiveProfiles("dev", "prod");

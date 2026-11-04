@@ -66,14 +66,25 @@ export default function AuthScreen({ query, onAuthenticated }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.oidcToken]);
 
-  const oidcError = {
-    email_not_verified: "Le fournisseur n'a pas vérifié votre adresse email.",
-    email_missing: "Le fournisseur n'a pas transmis votre adresse email.",
-    account_not_found:
-      "Aucun compte Mazlove existant ne correspond à cette adresse.",
-    refused: "La connexion SSO a été refusée.",
-    mail_unavailable: "Le code n’a pas pu être envoyé. Réessayez la connexion.",
-  }[query.oidcError];
+  const oidcError =
+    query.oidcError &&
+    ({
+      email_not_verified: "Le fournisseur n'a pas vérifié votre adresse email.",
+      email_missing: "Le fournisseur n'a pas transmis votre adresse email.",
+      account_not_found:
+        "Aucun compte Mazlove existant ne correspond à cette adresse.",
+      refused: "La connexion SSO a été refusée.",
+      mail_unavailable:
+        "Le code n’a pas pu être envoyé. Réessayez la connexion.",
+      auth_unavailable:
+        "La connexion est temporairement indisponible. Réessayez plus tard.",
+      otp_throttled: "Trop de demandes de code. Patientez avant de réessayer.",
+      access_denied:
+        "La connexion a été annulée ou refusée chez le fournisseur.",
+      authorization_request_not_found:
+        "La connexion SSO a expiré. Recommencez la connexion.",
+    }[query.oidcError] ||
+      "La connexion SSO a échoué. Recommencez la connexion.");
 
   return (
     <div className="auth-page mx-auto max-w-md space-y-6 pt-2">

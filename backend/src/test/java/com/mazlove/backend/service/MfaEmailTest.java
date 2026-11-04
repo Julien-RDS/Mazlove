@@ -6,12 +6,13 @@ import static org.mockito.Mockito.*;
 
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
-import java.time.Duration;
+import java.util.List;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mock.env.MockEnvironment;
@@ -23,6 +24,7 @@ class MfaEmailTest {
     @SuppressWarnings("unchecked")
     ValueOperations<String, String> values = mock(ValueOperations.class);
     when(redis.opsForValue()).thenReturn(values);
+    when(redis.execute(any(RedisScript.class), anyList(), anyString())).thenReturn(1L);
     var email = mock(EmailService.class);
     var env = new MockEnvironment().withProperty("mazlove.dev.fixed-otp", "true");
     env.setActiveProfiles("dev");
@@ -46,13 +48,22 @@ class MfaEmailTest {
     @SuppressWarnings("unchecked")
     ValueOperations<String, String> values = mock(ValueOperations.class);
     when(redis.opsForValue()).thenReturn(values);
+    when(redis.execute(any(RedisScript.class), anyList(), anyString())).thenReturn(1L);
     EmailService email = mock(EmailService.class);
     MfaService service = new MfaService(redis, email, false, true, new MockEnvironment());
 
     service.sendOtp("  Alice@Example.com  ");
 
     ArgumentCaptor<String> code = ArgumentCaptor.forClass(String.class);
-    verify(values).set(eq("otp:alice@example.com"), code.capture(), eq(Duration.ofMinutes(5)));
+    verify(redis)
+        .execute(
+            any(RedisScript.class),
+            eq(
+                List.of(
+                    "otp:alice@example.com",
+                    "otp-attempts:alice@example.com",
+                    "otp-send:alice@example.com")),
+            code.capture());
     assertTrue(code.getValue().matches("[0-9]{6}"));
     verify(email).sendOtpEmail("alice@example.com", code.getValue());
   }
@@ -63,6 +74,7 @@ class MfaEmailTest {
     @SuppressWarnings("unchecked")
     ValueOperations<String, String> values = mock(ValueOperations.class);
     when(redis.opsForValue()).thenReturn(values);
+    when(redis.execute(any(RedisScript.class), anyList(), anyString())).thenReturn(1L);
     EmailService email = mock(EmailService.class);
     doThrow(new MailSendException("SMTP indisponible"))
         .when(email)

@@ -28,7 +28,7 @@ class OidcSecurityTest {
   @org.springframework.web.servlet.config.annotation.EnableWebMvc
   static class MvcConfiguration {}
 
-  private final WebApplicationContextRunner runner =
+  final WebApplicationContextRunner runner =
       new WebApplicationContextRunner()
           .withUserConfiguration(
               MvcConfiguration.class,

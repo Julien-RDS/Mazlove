@@ -43,6 +43,12 @@ public class OidcLoginHandlers {
       } catch (org.springframework.mail.MailException e) {
         redirect(response, "oidcError", "mail_unavailable");
         return;
+      } catch (org.springframework.dao.DataAccessException e) {
+        redirect(response, "oidcError", "auth_unavailable");
+        return;
+      } catch (org.springframework.web.server.ResponseStatusException e) {
+        redirect(response, "oidcError", "otp_throttled");
+        return;
       }
       redirect(response, "oidcEmail", email);
     } else {

@@ -17,6 +17,17 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 class OidcAccountServiceTest {
   @Test
+  void missingVerifiedClaimIsRejected() {
+    var users = mock(UserRepository.class);
+    var oidc = mock(OidcUser.class);
+    when(oidc.getEmailVerified()).thenReturn(null);
+    assertThrows(
+        OAuth2AuthenticationException.class,
+        () -> new OidcAccountService(users).requireExistingVerifiedEmail(oidc));
+    verifyNoInteractions(users);
+  }
+
+  @Test
   void oidcIsDisabledWhenOneRequiredVariableIsMissing() {
     var environment =
         new MockEnvironment()

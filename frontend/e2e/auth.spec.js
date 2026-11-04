@@ -1,5 +1,24 @@
 import { test, expect } from "@playwright/test";
 
+test("les refus et expirations SSO affichent toujours un message", async ({
+  page,
+}) => {
+  await fixture(page, { oidc: true });
+  for (const code of [
+    "access_denied",
+    "authorization_request_not_found",
+    "auth_unavailable",
+    "unknown_error",
+  ]) {
+    await page.goto("/#/connexion?oidcError=" + code);
+    await page.reload();
+    await expect(page.getByRole("alert")).toBeVisible();
+    expect(
+      await page.evaluate(() => localStorage.getItem("mazlove.token")),
+    ).toBeNull();
+  }
+});
+
 test("un jeton dans l’URL ne saute pas l’OTP lorsque le serveur impose la 2FA", async ({
   page,
 }) => {

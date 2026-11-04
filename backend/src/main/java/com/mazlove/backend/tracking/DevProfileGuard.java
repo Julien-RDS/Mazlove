@@ -11,9 +11,11 @@ public class DevProfileGuard {
     boolean development = env.acceptsProfiles(Profiles.of("dev & !prod"));
     boolean twoFactorEnabled = env.getProperty("auth.2fa-enabled", Boolean.class, true);
     if (production
-        && (env.acceptsProfiles(Profiles.of("dev"))
+        && (env.acceptsProfiles(Profiles.of("dev | demo"))
+            || env.getProperty("mfa.dev-log-otp", Boolean.class, false)
             || env.getProperty("mazlove.dev.fixed-otp", Boolean.class, false)))
-      throw new IllegalStateException("Le profil dev et l'OTP fixe sont interdits en production.");
+      throw new IllegalStateException(
+          "Les profils dev/demo, les logs OTP et l'OTP fixe sont interdits en production.");
     if (!twoFactorEnabled && !development)
       throw new IllegalStateException(
           "La double authentification ne peut être désactivée qu'avec le profil dev.");

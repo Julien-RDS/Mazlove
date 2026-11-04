@@ -14,6 +14,27 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 class OidcLoginHandlersTest {
   @Test
+  void redisFailureRedirectsWithoutJwtOrSession() throws Exception {
+    var accounts = mock(OidcAccountService.class);
+    var mfa = mock(MfaService.class);
+    var auth = mock(AuthService.class);
+    var principal = mock(OidcUser.class);
+    when(accounts.requireExistingVerifiedEmail(principal)).thenReturn("alice@example.test");
+    when(mfa.isEnabled()).thenReturn(true);
+    doThrow(new org.springframework.data.redis.RedisConnectionFailureException("test"))
+        .when(mfa)
+        .sendOtp("alice@example.test");
+    var request = new MockHttpServletRequest();
+    request.getSession();
+    var response = new MockHttpServletResponse();
+    new OidcLoginHandlers(accounts, mfa, auth, "https://app.example.test")
+        .success(request, response, new UsernamePasswordAuthenticationToken(principal, ""));
+    assertNull(request.getSession(false));
+    assertTrue(response.getRedirectedUrl().endsWith("oidcError=auth_unavailable"));
+    verifyNoInteractions(auth);
+  }
+
+  @Test
   void successfulSsoRequiresLocalOtpBeforeIssuingAnyJwt() throws Exception {
     var accounts = mock(OidcAccountService.class);
     var mfa = mock(MfaService.class);
