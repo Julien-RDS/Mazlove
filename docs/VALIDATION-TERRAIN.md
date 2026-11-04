@@ -1,29 +1,38 @@
 # Validation sur applications, appareils et préproduction — état au 31 octobre 2026
 
-Ce document prépare les contrôles qui exigent des moyens réels : Docker, PostgreSQL, Redis, MailHog, téléphones, préproduction. **Aucun n'a été exécuté par la livraison qui l'accompagne** : elle s'est déroulée dans un environnement sans Docker, sans accès à Maven Central (donc ni `mvn test` ni tests d'intégration), sans service de données et sans appareil. Les résultats ci-dessous sont des cases à remplir, pas des résultats.
+Ce document prépare les contrôles qui exigent des moyens réels : Docker, PostgreSQL, Redis, MailHog, téléphones, préproduction. Dix tests d'intégration PostgreSQL, Redis et STOMP réels avaient réussi pendant le chantier GPS ; **aucun des contrôles ci-dessous n'a été exécuté depuis** : la rédaction s'est faite dans un environnement sans Docker, sans accès à Maven Central, sans service de données et sans appareil. Les tableaux contiennent des cases à remplir, pas des résultats. Restent à valider : le parcours navigateur complet contre les services réels, l'OIDC externe (Google, Microsoft), la livraison SMTP externe et les téléphones.
 
 | Point | Statut | Ce qui existe |
 | --- | --- | --- |
-| 1. Version réellement servie | Outil livré, **non exécuté sur Docker** | `make version` / `scripts/check-served-version.sh` (logique vérifiée contre un faux `docker`, six scénarios) |
+| 1. Version réellement servie | Commandes en lecture seule ; outil Docker **non exécuté sur un vrai Docker** | Section 1 (poste de développement et préproduction par JAR) |
 | 2. Parcours navigateur réel | À exécuter ; **lacunes de couverture identifiées** | `frontend/e2e/tracking.spec.js` (un seul scénario) |
 | 3. Safari/iOS, Chrome/Android | À exécuter | Matrice et mesure de cadence ci-dessous |
 | 4. SOS avec MailHog | À exécuter | Scénarios et requêtes SQL ci-dessous |
-| 5. Préproduction | À exécuter ; **un contrôle prioritaire** (adresse client) | Liste de contrôles et commandes ci-dessous |
+| 5. Préproduction | À exécuter ; **priorité : quota par adresse cliente** | Section 5 et `scripts/check-quota.mjs` (auto-test sur serveurs simulés) |
+| 6. SMTP et OIDC externes | À exécuter | Section 6 |
 
-Règles communes : base de test **dédiée** avec le seed fictif et des comptes fictifs, jamais de données utilisateur ; ne pas réinitialiser de volumes ni exécuter `FLUSHALL` ; profil `dev` et réglages de démonstration uniquement en test, jamais en production ; fournir les paramètres PostgreSQL, Redis et JWT par l'environnement, sans les écrire dans les commandes ni dans les journaux.
+Règles communes : `make up` et `docker-compose.yml` sont la configuration de **développement** (seed, MailHog, profil `dev`, ports de PostgreSQL et Redis publiés) : ne jamais les lancer sur une préproduction contenant des données réelles ; base de test **dédiée** avec le seed fictif et des comptes fictifs, jamais de données utilisateur ; ne pas réinitialiser de volumes ni exécuter `FLUSHALL` ; profil `dev` et réglages de démonstration uniquement en test, jamais en production ; fournir les paramètres PostgreSQL, Redis et JWT par l'environnement, sans les écrire dans les commandes ni dans les journaux.
 
 ## 1. Version réellement servie
 
-Les conteneurs existants peuvent encore tourner sur une ancienne image. Les images portent désormais l'étiquette `org.opencontainers.image.revision` et le frontend publie `/version.json`, **seulement** quand `GIT_SHA` est fourni au build (un build de production sans `GIT_SHA` n'expose rien).
+Tous les contrôles ci-dessous sont en **lecture seule**. Les conteneurs ou services existants peuvent encore faire tourner une ancienne version.
 
-```sh
-git pull && make up            # make exporte GIT_SHA=$(git rev-parse --short HEAD) et construit
-make version                   # ou : ./scripts/check-served-version.sh http://localhost:3000
-```
+**Poste de développement (Compose).** Les images portent l'étiquette `org.opencontainers.image.revision` et le frontend publie `/version.json`, seulement quand `GIT_SHA` est fourni au build (`make up` le fournit). `make version` (ou `./scripts/check-served-version.sh [URL]`) compare l'image utilisée par chaque conteneur à l'image actuelle de son nom, l'étiquette au commit courant, puis `version.json` au commit courant ; sortie 0 seulement si tout concorde. Pour un autre fichier Compose : `COMPOSE="docker compose -f fichier.yml" ./scripts/check-served-version.sh URL`. Une image construite sans `GIT_SHA` est signalée « commit inconnu » : ce n'est pas un échec du déploiement. Logique vérifiée contre un faux `docker` (six scénarios), jamais contre un vrai Docker.
 
-Sans `make` : `GIT_SHA=$(git rev-parse --short HEAD) docker compose --profile dev up -d --build`. Le script compare, pour le backend et le frontend, l'image utilisée par le conteneur à l'image actuelle de son nom (sinon : `docker compose up -d --force-recreate <service>`), puis l'étiquette au commit courant, puis `version.json` au commit courant. Sortie 0 seulement si tout concorde.
+**Préproduction par JAR et `dist`** (le modèle décrit par `PRODUCTION.md`). Le script Docker ne s'applique pas.
 
-Limites : un arbre de travail modifié est signalé (le commit ne décrit plus exactement le build) ; l'étiquette prouve le commit passé au build, pas le contenu réel de l'image ; le script n'a pas été lancé contre un vrai Docker.
+- Frontend : Vite nomme les fichiers d'après leur contenu. Comparer ce que la préproduction sert à un build du **même commit avec les mêmes variables** (`VITE_DEMO=false`, `VITE_MAP_STYLE_URL`, `VITE_MAP_STYLE_DARK_URL`) :
+  ```sh
+  curl -s https://HOST/ | grep -o 'assets/[A-Za-z0-9._-]*\.\(js\|css\)' | sort
+  # poste de build : cd frontend && npm ci && VITE_DEMO=false npm run build && grep -o 'assets/[A-Za-z0-9._-]*\.\(js\|css\)' dist/index.html | sort
+  ```
+  Les deux listes doivent être identiques.
+- Backend : relever le JAR réellement lancé, puis son empreinte :
+  ```sh
+  ps -o args= -C java | grep -o '[^ ]*\.jar'      # ou : systemctl cat <service> | grep ExecStart
+  sha256sum /chemin/du/backend-*.jar               # à comparer à celle conservée au déploiement
+  ```
+  Deux builds Maven du même commit ne donnent pas forcément les mêmes octets (horodatages) : conserver l'empreinte du JAR au moment du déploiement, ou à défaut comparer la date du fichier au commit et `systemctl show -p ActiveEnterTimestamp <service>`. **Limite** : le JAR ne porte pas son commit, le backend ne peut donc pas prouver sa version par lui-même.
 
 ## 2. Parcours navigateur réel et lacunes de couverture
 
@@ -113,7 +122,50 @@ Aucun appel ni SMS aux secours n'est effectué ; 17 et 112 restent affichés. Un
 
 Contrôles à faire sur la préproduction existante ; remplacer `HOST` et l'origine autorisée.
 
-**Priorité : adresse cliente derrière le proxy.** Le quota du partage public (30 requêtes par minute) est calculé sur `request.getRemoteAddr()` (`TripSafetyController`). Le dépôt ne contient aucun réglage `server.forward-headers-strategy` ni `server.tomcat.remoteip.internal-proxies` (recherche faite dans les `.properties`, `.yml`, `.conf`, Dockerfile et documents) : le Nginx fourni envoie `X-Forwarded-For`, mais rien dans le dépôt n'amène le backend à le lire. Si la préproduction ne les définit pas non plus (variables d'environnement `SERVER_FORWARD_HEADERS_STRATEGY` et `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES`, ou propriétés), **tous les visiteurs partagent un seul quota** et une seule personne peut l'épuiser pour tous. C'est une lecture du code, pas une observation à l'exécution ; le réglage est décrit dans `PRODUCTION.md`, la valeur de `internal-proxies` doit se limiter aux adresses réelles du proxy.
+### Priorité : quota par adresse cliente
+
+**Faits établis.** Seul `GET /api/public/trips/{jeton}` dépend de l'adresse cliente : `request.getRemoteAddr()` est la seule occurrence dans le backend, les limiteurs de connexion et d'OTP n'en dépendent pas. Le dépôt ne règle ni `server.forward-headers-strategy` ni `server.tomcat.remoteip.internal-proxies` (recherche dans les `.properties`, `.yml`, `.conf`, Dockerfile et documents). Le Nginx fourni envoie `X-Forwarded-For: $remote_addr`, mais rien n'amène le backend à le lire. **Inconnu** : la chaîne réelle de la préproduction et ses réglages. Risque si rien n'est configuré : tous les visiteurs partagent un compteur de 30 requêtes par minute, qu'une seule personne peut épuiser.
+
+**Ne pas accepter `X-Forwarded-For` aveuglément** : un client pourrait alors changer d'adresse à chaque requête et contourner la limite. Identifier d'abord la chaîne, ensuite seulement déclarer des proxies de confiance, avec des adresses exactes.
+
+**Étape A — identifier la chaîne (lecture seule).**
+
+1. De l'extérieur : `curl -sSI https://HOST/ | grep -iE '^(server|via|x-served-by|x-cache|cf-ray|x-amz-cf-id|alt-svc):'` et `dig +short HOST`. `Via`, `CF-RAY`, `X-Amz-Cf-Id` ou `X-Cache` indiquent un CDN ou un répartiteur de charge devant. Si l'adresse DNS n'est portée par aucune interface du serveur (`ip -4 -o addr show`), un NAT, un répartiteur ou un CDN précède : indice, pas preuve (le NAT 1:1 des hébergeurs produit le même effet).
+2. Configuration Nginx réelle : `sudo nginx -T 2>/dev/null | grep -nE 'real_ip|set_real_ip_from|X-Forwarded-For|proxy_pass|listen|access_log'`.
+3. Ce que **Nginx** voit : faire une requête sur `/` depuis un téléphone en 4G (adresse publique différente de celle du poste ; relever cette adresse sur le téléphone), puis lire **uniquement la première colonne** du journal d'accès, jamais les URL : `sudo tail -n 20 <access_log> | awk '{print $1}'`. Les chemins de partage ne sont pas journalisés, d'où `/`. La première colonne égale à l'adresse du téléphone : Nginx voit le vrai client. Une même adresse pour des clients différents : un proxy précède Nginx.
+4. Ce que le **backend** voit : `ss -tn state established '( sport = :3001 )' | awk 'NR>1{print $4}'` donne les adresses des clients connectés au port du backend, c'est-à-dire celle de Nginx (127.0.0.1 si Nginx est sur la même machine ; adresse du réseau Docker pour un conteneur ; à adapter si le backend est lui-même dans un conteneur). C'est l'adresse à déclarer côté Tomcat.
+
+**Étape B — mesurer le quota** (consomme le quota de l'adresse testeuse pendant 60 s ; préproduction uniquement).
+
+```sh
+node scripts/check-quota.mjs https://HOST            # 2 contrôles, environ 2 minutes
+# Aussitôt après la fin du premier contrôle (moins de 40 s), depuis une AUTRE adresse publique (autre réseau) :
+node scripts/check-quota.mjs https://HOST --probe
+```
+
+| Constat | Interprétation | Action |
+| --- | --- | --- |
+| Adresse fixe : 429 dès la 31ᵉ ; `X-Forwarded-For` aléatoires : 429 dès la 31ᵉ ; seconde adresse : 404 | Quota par adresse, en-tête client ignoré | Rien |
+| Seconde adresse : **429** | Compteur **partagé** : le backend voit l'adresse du proxy | Étape C |
+| `X-Forwarded-For` aléatoires : aucun 429 (« CONTOURNABLE ») | Confiance excessive envers l'en-tête client | Restreindre la confiance (étape C), vérifier que Nginx **remplace** l'en-tête |
+| Adresse fixe : aucun 429 en 35 requêtes | Quota inactif ou compteur contourné (Redis arrêté, cache CDN) | Contrôler Redis et le cache du proxy |
+| 429 avant la 31ᵉ | Quota déjà entamé ou partagé | Relancer sur un réseau calme, puis `--probe` |
+
+Le contrôle à adresses `X-Forwarded-For` aléatoires réussit aussi quand le compteur est partagé : seul `--probe` depuis une seconde adresse permet de les distinguer. Le script a un auto-test (`node scripts/check-quota.mjs --selftest`, neuf cas sur trois serveurs simulés : correct, contournable, partagé) ; il valide la logique du script, pas votre préproduction.
+
+**Étape C — configurer la confiance, seulement après A.**
+
+- *Un proxy précède Nginx* (CDN, répartiteur) : dans Nginx, une ligne `set_real_ip_from <adresse exacte du proxy>;` par proxy de confiance (jamais `0.0.0.0/0`), `real_ip_header X-Forwarded-For;` (ou l'en-tête propre au CDN, selon sa documentation), `real_ip_recursive on;` seulement si plusieurs proxies de confiance s'enchaînent. Pour un CDN, reprendre les plages publiées par le fournisseur à jour, jamais de mémoire. `proxy_set_header X-Forwarded-For $remote_addr;`, déjà fourni, transmet alors la vraie adresse.
+- *Dans tous les cas*, côté backend, par variables d'environnement du service : `SERVER_FORWARD_HEADERS_STRATEGY=native` et `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES=<expression régulière des adresses relevées à l'étape A4>`, par exemple `127\.0\.0\.1`. La valeur par défaut de Spring Boot couvre les réseaux privés usuels : la restreindre aux adresses effectives.
+- Le port du backend ne doit pas être joignable autrement que par Nginx ; sinon un client direct depuis une adresse de confiance pourrait fixer l'adresse de son choix.
+
+**Étape D — rejouer l'étape B** et reporter les résultats ici.
+
+| Date | Chaîne identifiée | Adresse fixe | `X-Forwarded-For` aléatoires | Seconde adresse |
+| --- | --- | --- | --- | --- |
+| | | | | |
+
+### Autres contrôles de préproduction
 
 1. **HTTPS et redirection.** `curl -sSI https://HOST/` sans `-k` : 200, certificat valide. `curl -sSI http://HOST/` : 301 ou 308 vers HTTPS.
 2. **En-têtes de confidentialité.** `curl -sSI https://HOST/ | grep -i referrer-policy` et idem pour `/t/exemple` : `no-referrer`.
@@ -124,8 +176,42 @@ Contrôles à faire sur la préproduction existante ; remplacer `HOST` et l'orig
    ```
    Attendu : l'origine autorisée « ouvert », l'autre « HTTP 403 ».
 5. **Expiration du JWT en connexion ouverte.** Se connecter en STOMP avec un jeton proche de son expiration (durée courte en préproduction) : la socket doit être fermée avec le code 1008 au plus tard au prochain passage du job d'une seconde après `exp`. Relever l'écart entre `exp` et la fermeture.
-6. **Quota public et adresse cliente.** Depuis une première adresse : `for i in $(seq 1 35); do curl -s -o /dev/null -w '%{http_code} ' https://HOST/api/public/trips/jeton-inexistant; done` : 404 puis **429** à partir de la 31ᵉ. Aussitôt depuis une **seconde adresse publique** (autre réseau) : une seule requête doit répondre 404, pas 429 ; un 429 immédiat prouve que le backend voit l'adresse du proxy (quota partagé). Répéter la première série avec un `X-Forwarded-For` aléatoire par requête : le 429 doit toujours apparaître (le Nginx fourni remplace l'en-tête par `$remote_addr`).
+6. **Quota public et adresse cliente** : voir la priorité ci-dessus.
 7. **Journaux sans jeton ni position.** Compter sans afficher les lignes : `grep -cE '/t/[A-Za-z0-9_-]{16,}|/api/public/trips/[A-Za-z0-9_-]{8,}|Bearer |Authorization|eyJ[A-Za-z0-9_-]{10,}\.' <journaux nginx et backend>` : attendu 0 ; contrôler aussi l'absence de corps GPS (`"lat"`, `"lng"`) dans les journaux applicatifs.
-8. **Migration et retour arrière sur une copie.** Copier la base (`pg_dump` vers un fichier protégé, restauration dans une base `…_copie`), appliquer `psql -v ON_ERROR_STOP=1 -f backend/src/main/resources/sql/migrations/004-tracking-reliability.sql`, démarrer le backend du commit courant sur la copie, puis démarrer le backend et le frontend **ensemble** du commit précédent (`b83090a`) sur la même copie : il doit démarrer, les ajouts SQL étant compatibles. Traiter la file SOS avant ce retour (`PENDING`, `SENDING`, `FAILED`, `UNKNOWN`) sans relancer les incertains.
+8. **Migration et retour arrière sur une copie.** Copier la base (`pg_dump` vers un fichier protégé, restauration dans une base `…_copie`), appliquer `psql -v ON_ERROR_STOP=1 -f backend/src/main/resources/sql/migrations/004-tracking-reliability.sql`, démarrer le backend du commit à déployer sur la copie, puis démarrer le backend et le frontend **ensemble** de la version **actuellement déployée** (à conserver avant tout remplacement, comme l'exige `PRODUCTION.md`) sur la même copie : il doit démarrer. `PRODUCTION.md` cite `b83090a` comme référence de la phase 3, mais y revenir retire aussi tout ce qui a été livré depuis (nettoyage, thème, 2FA de développement, OIDC) ; la cible réaliste est la version en service. Les commits livrés depuis la phase 4 n'ajoutent aucune migration SQL au-delà de `004`. Traiter la file SOS avant ce retour (`PENDING`, `SENDING`, `FAILED`, `UNKNOWN`) sans relancer les incertains.
 
 La configuration Compose de développement n'est pas une configuration de production. Ces contrôles ne valident pas la production.
+
+## 6. SMTP et OIDC externes
+
+Configuration de référence : section « Authentification, 2FA et OIDC » de `PRODUCTION.md`. Fournir tous les secrets par l'environnement du service, jamais dans une commande copiée ni un journal.
+
+### SMTP
+
+Réglages : port 587 avec `MAIL_SMTP_STARTTLS=true` et `MAIL_SMTP_SSL=false`, ou port 465 avec `MAIL_SMTP_STARTTLS=false` et `MAIL_SMTP_SSL=true` ; délais bornés à 5 s par opération. MailHog n'est jamais le serveur d'une préproduction qui sert à valider la livraison réelle.
+
+| Contrôle | Attendu |
+| --- | --- |
+| OTP de connexion vers une boîte de test que vous contrôlez, chez **un autre fournisseur** que celui de l'expéditeur | Reçu en boîte de réception, pas en courrier indésirable |
+| En-têtes du message reçu (« afficher l'original ») | SPF, DKIM et DMARC à `pass` ; si non, vérifier les enregistrements DNS du domaine expéditeur (`dig +short TXT <domaine>`, `dig +short TXT _dmarc.<domaine>`) |
+| Mauvais mot de passe SMTP ou serveur injoignable | Noter ce que voit l'utilisateur et ce qui est journalisé ; aucun mot de passe ni code dans les journaux |
+| Code reçu cherché dans les journaux du backend : `grep -c '<code>' <journal>` | 0 (`MFA_DEV_LOG_OTP` doit rester faux hors développement) |
+| SOS réel vers un contact de test | Message reçu ; mêmes contrôles d'en-têtes ; états de la file selon la section 4 |
+
+La livraison réelle d'un message SMTP ne se prouve que par sa réception : un « envoyé » côté Mazlove atteste seulement que le serveur SMTP a accepté le message.
+
+### OIDC (Google, Microsoft)
+
+Préparation : `PUBLIC_BASE_URL` égal à l'origine publique ; URL de redirection enregistrée chez le fournisseur : `https://HOST/login/oauth2/code/oidc` ; `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` définis ; le proxy transmet `/oauth2/authorization/` et `/login/oauth2/code/` au backend. Utiliser un client OAuth de test et des comptes de test.
+
+| Scénario | Attendu |
+| --- | --- |
+| Réponse de `/api/auth/config` avec les trois variables, puis avec l'une d'elles retirée | Bouton « Continuer avec… » affiché dans le premier cas, absent dans le second |
+| Compte Mazlove existant, adresse vérifiée chez le fournisseur | Retour sur l'application, puis **OTP email demandé** ; le JWT n'est délivré qu'après l'OTP |
+| Adresse inconnue de Mazlove | Refus ; **aucun compte créé** (contrôler en base le nombre de comptes pour cette adresse) |
+| Claim `email_verified` absent ou faux (cas fréquent chez Microsoft, selon `PRODUCTION.md`) | Refus explicite, même si une adresse ou un UPN est présent |
+| Annulation chez le fournisseur, retour rejoué, `state` modifié | Message d'erreur, aucune session ouverte |
+| Adresse affichée dans le navigateur pendant tout le parcours | Toujours l'origine publique, jamais une adresse interne (`backend:3001`) |
+| `AUTH_2FA_ENABLED=false` avec `SPRING_PROFILES_ACTIVE=prod`, sur une instance de test | Le backend **refuse de démarrer** ; lire le message dans les journaux de démarrage |
+
+À constater, pas à supposer : si votre locataire Microsoft émet un claim de vérification de l'adresse acceptable par l'application ; ce document ne le garantit pas.

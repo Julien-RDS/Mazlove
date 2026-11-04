@@ -41,7 +41,7 @@ Deux corrections de contraste au passage. Le rouge d'erreur `alerte` n'atteignai
 | Vérification | Résultat |
 | --- | --- |
 | `npm test` | 51 tests Vitest réussis, 10 fichiers (31 existants + 20 pour le thème) |
-| `npm run test:frontpage` avec Chromium 153 | 21 scénarios réussis (15 existants + 6 pour le thème) ; API, STOMP et tuiles simulés |
+| `npm run test:frontpage` avec Chromium 153 | 21 scénarios réussis (15 existants + 6 pour le thème) ; API, STOMP et tuiles simulés. 25 depuis `46f28b3`, qui ajoute les scénarios d'authentification |
 | `VITE_DEMO=false npm run build` | Réussi ; MapLibre toujours différé |
 | Garde-fous | Chacun a été vérifié en **cassant volontairement** la fonctionnalité : contraste d'origine rétabli, jeton oublié en mode nuit, orange réintroduit dans un CSS, bascule qui n'efface plus le choix, fond sombre jamais choisi, carte non recréée. Chaque défaut fait échouer le test attendu. |
 | Rendu | Captures Chromium sans tête (bureau 1280 px, mobile 390 px, jour et nuit) de l'accueil, de la section de suivi, du ticket, du panneau de trajet (carte, ETA, SOS) et de la fiche praticien. La fiche praticien a été rendue **sur l'ancien et le nouveau code avec le même jeu de données** (1280 px, mode jour) : mise en page identique à l'œil, seules les couleurs changent. Comparaison visuelle, pas un test automatisé. |

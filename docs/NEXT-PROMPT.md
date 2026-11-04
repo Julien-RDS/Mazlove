@@ -1,6 +1,8 @@
 # Prochaine étape — validation GPS sur applications et mobiles réels
 
-> **Statut au 31 octobre 2026, suite.** Les points 1 à 5 ci-dessous exigent Docker, des services de données, des appareils et la préproduction : ils n'ont pas pu être exécutés lors de la dernière livraison, qui a produit à leur place [VALIDATION-TERRAIN.md](VALIDATION-TERRAIN.md) (protocoles, lacunes de couverture, résultats à remplir) et l'outil `make version`. Palette rose/rouge et mode nuit : [UX-THEME.md](UX-THEME.md).
+> **Statut au 31 octobre 2026, suite.** Les points 1 à 5 ci-dessous exigent Docker, des services de données, des appareils et la préproduction : ils n'ont pas pu être exécutés lors de la dernière livraison, qui a produit à leur place [VALIDATION-TERRAIN.md](VALIDATION-TERRAIN.md) (protocoles, lacunes de couverture, résultats à remplir) et l'outil `make version`. Palette rose/rouge et mode nuit : [UX-THEME.md](UX-THEME.md). Le quota par adresse cliente est la priorité, avec la chaîne de proxies à identifier **avant** toute configuration de confiance.
+>
+> **Chiffres au 1ᵉʳ novembre 2026 (`46f28b3`).** Frontend, mesuré avec Chromium : 51 tests Vitest et 25 scénarios navigateur simulés réussis. Backend, rapporté par le dernier commit et non revérifié : 78 tests réussis, 4 désactivés. Les chiffres du corps du prompt ci-dessous (31, 15, 67) datent de sa rédaction. Compte rendu de la validation à venir : [VALIDATION-TERRAIN.md](VALIDATION-TERRAIN.md).
 
 Tu interviens sur Julien-RDS/Mazlove, depuis le dernier master. Lis d’abord `docs/GPS-OPTIMIZATION.md`, puis `docs/TRACKING-PHASE4.md`, `docs/PRODUCTION.md` et le code concerné. Préserve le design et les parcours existants. Utilise les services déjà disponibles ; ne lance ni Docker ni déploiement sans instruction explicite. Aucun service payant, nouvelle clé, Stripe, application native ou infrastructure multi-instance. Avance par étapes courtes, sans audit général.
 
