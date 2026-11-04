@@ -24,10 +24,26 @@ Fournir au processus backend, par le gestionnaire de secrets/service existant :
 - `DATABASE_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` propres à la production.
 - `PUBLIC_BASE_URL=https://votre-domaine` et `ALLOWED_ORIGINS=https://votre-domaine` ; pour plusieurs origines, liste séparée par des virgules, sans wildcard, chemin ou barre finale. Le même réglage protège le WebSocket.
 - `PORT=3001` si le proxy fourni est utilisé : le profil prod seul choisit sinon 8080, alors que `frontend/nginx.conf` cible 3001.
-- SMTP opérationnel : `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS` selon le serveur ; `MAIL_FROM` via la propriété Spring `mail.from` si nécessaire. Les délais SMTP sont bornés à 5 secondes par opération.
+- SMTP opérationnel : `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_SMTP_AUTH`, `MAIL_SMTP_STARTTLS`, `MAIL_SMTP_SSL` et `MAIL_FROM`. Utiliser le port 587 avec `MAIL_SMTP_STARTTLS=true` et `MAIL_SMTP_SSL=false`, ou le port 465 avec `MAIL_SMTP_STARTTLS=false` et `MAIL_SMTP_SSL=true` pour le TLS direct. Les délais SMTP sont bornés à 5 secondes par opération.
 - Répertoires persistants et accessibles au compte du service pour les uploads et les logs. Routage/tuiles selon l’infrastructure existante ; pas de nouvelle clé payante nécessaire. L’ETA peut être estimée si OSRM échoue.
 
 Les propriétés du profil prod désactivent l’initialisation SQL automatique, les logs OTP et Swagger. Le garde de configuration refuse les origines HTTP et le cumul dev/prod. Les contrôleurs de démonstration ne sont enregistrés qu’avec `dev & !prod`.
+
+## Authentification, 2FA et OIDC
+
+`AUTH_2FA_ENABLED` vaut `true` par défaut. Sa valeur est décidée par le serveur : le client ne peut pas demander de sauter l’OTP. Le garde de démarrage refuse `false` sous tout profil autre que `dev`, notamment en production. `MFA_DEV_LOG_OTP` et `MAZLOVE_DEV_FIXED_OTP` restent des aides locales ; le code fixe `123456` ne s’applique qu’avec `dev & !prod` et lorsque la 2FA est active.
+
+| Profil | `AUTH_2FA_ENABLED=true` | `AUTH_2FA_ENABLED=false` |
+| --- | --- | --- |
+| DEV (`dev`) | OTP exigé | JWT après le mot de passe, sans OTP |
+| TEST / autre | OTP exigé | démarrage refusé |
+| PROD (`prod`) | OTP exigé | démarrage refusé |
+
+L’OIDC est désactivé par défaut et ne s’active que si `OIDC_ISSUER`, `OIDC_CLIENT_ID` et `OIDC_CLIENT_SECRET` sont tous définis. Aucun secret ne doit être placé dans Git. Le fournisseur doit autoriser l’URL `https://votre-domaine/login/oauth2/code/oidc`, selon le format Spring `/login/oauth2/code/{id}`. Pour Google, utiliser l’issuer `https://accounts.google.com`. Pour Microsoft Entra ID, utiliser `https://login.microsoftonline.com/<tenant-id>/v2.0` et enregistrer la même URL de redirection dans l’application Entra.
+
+Le SSO rattache uniquement un compte Mazlove existant dont le claim `email_verified` vaut explicitement `true`; il ne crée pas de compte. En production, il est suivi de l’OTP email Mazlove. Les claims `amr` et `acr` diffèrent selon les fournisseurs et politiques : ils ne sont pas considérés ici comme une preuve suffisante pour supprimer l’OTP local. Le frontend n’affiche « Continuer avec… » que lorsque `/api/auth/config` indique que les trois paramètres OIDC sont présents.
+
+`PUBLIC_BASE_URL` doit correspondre à l’origine publique du frontend ; il fixe aussi l’URL de retour OIDC enregistrée chez le fournisseur. Le proxy transmet `/oauth2/authorization/` et `/login/oauth2/code/` au backend (règles ajoutées aux configurations Nginx et Vite fournies). Une session temporaire conserve le `state` et le `nonce`, puis est supprimée ; l’accès API continue d’exiger le JWT après l’OTP. Microsoft ne fournit pas systématiquement `email_verified` : si ce claim est absent ou faux, la connexion est refusée, même si un email ou un UPN est présent.
 
 ## Migration
 

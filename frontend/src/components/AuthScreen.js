@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { Api, tokenStore } from '../api';
-import { navigate } from '../lib/router';
-import { Button, Field, Notice, cx, inputClass } from './ui';
+import React, { useEffect, useRef, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { Api, oidcLoginUrl, tokenStore } from "../api";
+import { navigate } from "../lib/router";
+import { Button, Field, Notice, cx, inputClass } from "./ui";
 
 const RESEND_DELAY_SECONDS = 30;
 
@@ -11,37 +11,93 @@ const RESEND_DELAY_SECONDS = 30;
  * Après inscription, on enchaîne directement sur l'envoi du code : pas de second formulaire.
  */
 export default function AuthScreen({ query, onAuthenticated }) {
-  const [mode, setMode] = useState(query.mode === 'inscription' ? 'register' : 'login');
-  const [step, setStep] = useState('form'); // form | code
-  const [credentials, setCredentials] = useState(null); // gardés en mémoire pour « Renvoyer le code »
+  const [mode, setMode] = useState(
+    query.mode === "inscription" ? "register" : "login",
+  );
+  const [step, setStep] = useState(query.oidcEmail ? "code" : "form"); // form | code
+  const [credentials, setCredentials] = useState(
+    query.oidcEmail ? { email: query.oidcEmail, oidc: true } : null,
+  );
   const [info, setInfo] = useState(null);
+  const [oidc, setOidc] = useState({ enabled: false, provider: "SSO" });
+  const oidcHandled = useRef(false);
 
   const goToCode = (email, password, message) => {
     setCredentials({ email, password });
     setInfo(message);
-    setStep('code');
+    setStep("code");
   };
 
   const finish = async (token) => {
     tokenStore.set(token);
     const me = await onAuthenticated();
     // Un praticien sans fiche est guidé vers sa création, sinon retour là où il était.
-    if (me?.role === 'PROVIDER' && !me.providerId) navigate('/profil-praticien', { replace: true });
-    else navigate(query.retour || '/', { replace: true });
+    if (me?.role === "PROVIDER" && !me.providerId)
+      navigate("/profil-praticien", { replace: true });
+    else navigate(query.retour || "/", { replace: true });
   };
+
+  useEffect(() => {
+    Api.authConfig()
+      .then((config) =>
+        setOidc({
+          enabled: config.oidcEnabled,
+          provider: config.oidcProvider || "SSO",
+        }),
+      )
+      .catch(() => setOidc({ enabled: false, provider: "SSO" }));
+  }, []);
+
+  useEffect(() => {
+    if (!query.oidcToken || oidcHandled.current) return;
+    oidcHandled.current = true;
+    window.history.replaceState(null, "", "#/connexion");
+    Api.authConfig()
+      .then((config) => {
+        if (!config.oidcEnabled || config.twoFactorEnabled !== false)
+          throw new Error("Retour SSO invalide. Recommencez la connexion.");
+        return finish(query.oidcToken);
+      })
+      .catch((error) => {
+        tokenStore.clear();
+        setInfo(error.message);
+      });
+    // Le jeton est aussitôt retiré de l'URL par la navigation de finish().
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.oidcToken]);
+
+  const oidcError = {
+    email_not_verified: "Le fournisseur n'a pas vérifié votre adresse email.",
+    email_missing: "Le fournisseur n'a pas transmis votre adresse email.",
+    account_not_found:
+      "Aucun compte Mazlove existant ne correspond à cette adresse.",
+    refused: "La connexion SSO a été refusée.",
+    mail_unavailable: "Le code n’a pas pu être envoyé. Réessayez la connexion.",
+  }[query.oidcError];
 
   return (
     <div className="auth-page mx-auto max-w-md space-y-6 pt-2">
-      <div className="auth-welcome"><span aria-hidden="true">♡</span><p>VOTRE PARENTHÈSE VOUS ATTEND</p></div>
-      {step === 'form' ? (
+      <div className="auth-welcome">
+        <span aria-hidden="true">♡</span>
+        <p>VOTRE PARENTHÈSE VOUS ATTEND</p>
+      </div>
+      {step === "form" ? (
         <>
-          <h1 id="page-title" tabIndex={-1} className="text-4xl font-semibold outline-none">
-            {mode === 'login' ? 'Se connecter' : 'Créer un compte'}
+          <h1
+            id="page-title"
+            tabIndex={-1}
+            className="text-4xl font-semibold outline-none"
+          >
+            {mode === "login" ? "Se connecter" : "Créer un compte"}
           </h1>
-          <div className="grid grid-cols-2 rounded-full bg-carte p-1" role="group" aria-label="Choix du formulaire">
+          <div
+            className="grid grid-cols-2 rounded-full bg-carte p-1"
+            role="group"
+            aria-label="Choix du formulaire"
+          >
             {[
-              ['login', "J'ai déjà un compte"],
-              ['register', 'Je suis nouveau'],
+              ["login", "J'ai déjà un compte"],
+              ["register", "Je suis nouveau"],
             ].map(([value, label]) => (
               <button
                 key={value}
@@ -49,18 +105,31 @@ export default function AuthScreen({ query, onAuthenticated }) {
                 aria-pressed={mode === value}
                 onClick={() => setMode(value)}
                 className={cx(
-                  'rounded-full py-2 font-bold transition-colors',
-                  mode === value ? 'bg-nuit text-sur-nuit' : 'text-nuit-doux hover:text-nuit'
+                  "rounded-full py-2 font-bold transition-colors",
+                  mode === value
+                    ? "bg-nuit text-sur-nuit"
+                    : "text-nuit-doux hover:text-nuit",
                 )}
               >
                 {label}
               </button>
             ))}
           </div>
-          {mode === 'login' ? (
-            <LoginForm onCodeSent={goToCode} />
+          {mode === "login" ? (
+            <LoginForm onCodeSent={goToCode} onAuthenticated={finish} />
           ) : (
-            <RegisterForm onCodeSent={goToCode} />
+            <RegisterForm onCodeSent={goToCode} onAuthenticated={finish} />
+          )}
+          {(oidcError || info) && (
+            <Notice tone="error">{oidcError || info}</Notice>
+          )}
+          {mode === "login" && oidc.enabled && (
+            <a
+              href={oidcLoginUrl()}
+              className="flex min-h-12 w-full items-center justify-center rounded-full border border-lilas bg-carte px-5 font-bold text-nuit transition-colors hover:bg-lilas-pale"
+            >
+              Continuer avec {oidc.provider}
+            </a>
           )}
         </>
       ) : (
@@ -68,7 +137,7 @@ export default function AuthScreen({ query, onAuthenticated }) {
           credentials={credentials}
           info={info}
           onBack={() => {
-            setStep('form');
+            setStep("form");
             setInfo(null);
           }}
           onVerified={finish}
@@ -84,28 +153,34 @@ function PasswordInput({ value, onChange, autoComplete, ...props }) {
     <div className="relative">
       <input
         {...props}
-        type={visible ? 'text' : 'password'}
+        type={visible ? "text" : "password"}
         autoComplete={autoComplete}
         value={value}
         onChange={onChange}
-        className={cx(inputClass, 'pr-12')}
+        className={cx(inputClass, "pr-12")}
       />
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
         aria-pressed={visible}
-        aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+        aria-label={
+          visible ? "Masquer le mot de passe" : "Afficher le mot de passe"
+        }
         className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-lg text-nuit-doux hover:text-nuit"
       >
-        {visible ? <EyeOff className="h-5 w-5" aria-hidden="true" /> : <Eye className="h-5 w-5" aria-hidden="true" />}
+        {visible ? (
+          <EyeOff className="h-5 w-5" aria-hidden="true" />
+        ) : (
+          <Eye className="h-5 w-5" aria-hidden="true" />
+        )}
       </button>
     </div>
   );
 }
 
-function LoginForm({ onCodeSent }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+function LoginForm({ onCodeSent, onAuthenticated }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fields, setFields] = useState({});
@@ -116,8 +191,9 @@ function LoginForm({ onCodeSent }) {
     setError(null);
     setFields({});
     try {
-      await Api.login({ email: email.trim(), password });
-      onCodeSent(email.trim(), password, null);
+      const result = await Api.login({ email: email.trim(), password });
+      if (result.token) await onAuthenticated(result.token);
+      else onCodeSent(email.trim(), password, result.message);
     } catch (e) {
       setError(e.fields ? null : e.message);
       setFields(e.fields || {});
@@ -126,16 +202,34 @@ function LoginForm({ onCodeSent }) {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-5 rounded-3xl bg-carte p-5 sm:p-6" noValidate>
+    <form
+      onSubmit={submit}
+      className="space-y-5 rounded-3xl bg-carte p-5 sm:p-6"
+      noValidate
+    >
       {error && <Notice tone="error">{error}</Notice>}
       <Field label="Email" error={fields.email}>
         {(props) => (
-          <input {...props} type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+          <input
+            {...props}
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputClass}
+          />
         )}
       </Field>
       <Field label="Mot de passe" error={fields.password}>
         {(props) => (
-          <PasswordInput {...props} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput
+            {...props}
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         )}
       </Field>
       <Button type="submit" size="lg" className="w-full" loading={loading}>
@@ -145,12 +239,19 @@ function LoginForm({ onCodeSent }) {
   );
 }
 
-function RegisterForm({ onCodeSent }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', role: 'CLIENT' });
+function RegisterForm({ onCodeSent, onAuthenticated }) {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    role: "CLIENT",
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fields, setFields] = useState({});
-  const update = (key) => (event) => setForm((f) => ({ ...f, [key]: event.target.value }));
+  const update = (key) => (event) =>
+    setForm((f) => ({ ...f, [key]: event.target.value }));
 
   const submit = async (event) => {
     event.preventDefault();
@@ -158,57 +259,141 @@ function RegisterForm({ onCodeSent }) {
     setError(null);
     setFields({});
     try {
-      const payload = { ...form, email: form.email.trim(), name: form.name.trim(), phone: form.phone.trim() };
+      const payload = {
+        ...form,
+        email: form.email.trim(),
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+      };
       await Api.register(payload);
-      await Api.login({ email: payload.email, password: payload.password });
-      onCodeSent(payload.email, payload.password, 'Compte créé. Saisissez le code reçu pour vous connecter.');
+      const result = await Api.login({
+        email: payload.email,
+        password: payload.password,
+      });
+      if (result.token) await onAuthenticated(result.token);
+      else
+        onCodeSent(
+          payload.email,
+          payload.password,
+          "Compte créé. Saisissez le code reçu pour vous connecter.",
+        );
     } catch (e) {
-      setError(e.fields ? 'Certains champs sont à corriger.' : e.message);
+      setError(e.fields ? "Certains champs sont à corriger." : e.message);
       setFields(e.fields || {});
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={submit} className="space-y-5 rounded-3xl bg-carte p-5 sm:p-6" noValidate>
+    <form
+      onSubmit={submit}
+      className="space-y-5 rounded-3xl bg-carte p-5 sm:p-6"
+      noValidate
+    >
       {error && <Notice tone="error">{error}</Notice>}
 
       <fieldset className="space-y-2">
         <legend className="font-bold">Vous venez pour</legend>
         <div className="grid gap-2 sm:grid-cols-2">
           {[
-            ['CLIENT', 'Recevoir des séances', 'Trouver un praticien et réserver.'],
-            ['PROVIDER', 'Proposer des séances', 'Publier votre fiche et recevoir des réservations.'],
+            [
+              "CLIENT",
+              "Recevoir des séances",
+              "Trouver un praticien et réserver.",
+            ],
+            [
+              "PROVIDER",
+              "Proposer des séances",
+              "Publier votre fiche et recevoir des réservations.",
+            ],
           ].map(([value, title, description]) => (
             <label
               key={value}
               className={cx(
-                'flex cursor-pointer gap-3 rounded-2xl p-3 ring-1 ring-inset transition-colors',
-                form.role === value ? 'bg-lilas-pale ring-nuit' : 'ring-lilas hover:ring-nuit/40'
+                "flex cursor-pointer gap-3 rounded-2xl p-3 ring-1 ring-inset transition-colors",
+                form.role === value
+                  ? "bg-lilas-pale ring-nuit"
+                  : "ring-lilas hover:ring-nuit/40",
               )}
             >
-              <input type="radio" name="role" value={value} checked={form.role === value} onChange={update('role')} className="mt-1 h-4 w-4 accent-nuit" />
+              <input
+                type="radio"
+                name="role"
+                value={value}
+                checked={form.role === value}
+                onChange={update("role")}
+                className="mt-1 h-4 w-4 accent-nuit"
+              />
               <span>
                 <span className="block font-bold">{title}</span>
-                <span className="block text-[0.95rem] text-nuit-doux">{description}</span>
+                <span className="block text-[0.95rem] text-nuit-doux">
+                  {description}
+                </span>
               </span>
             </label>
           ))}
         </div>
-        {fields.role && <p className="text-[0.95rem] text-alerte">{fields.role}</p>}
+        {fields.role && (
+          <p className="text-[0.95rem] text-alerte">{fields.role}</p>
+        )}
       </fieldset>
 
-      <Field label="Prénom et nom" hint="Seuls votre prénom et l'initiale de votre nom apparaissent dans les avis." error={fields.name}>
-        {(props) => <input {...props} autoComplete="name" value={form.name} onChange={update('name')} className={inputClass} />}
+      <Field
+        label="Prénom et nom"
+        hint="Seuls votre prénom et l'initiale de votre nom apparaissent dans les avis."
+        error={fields.name}
+      >
+        {(props) => (
+          <input
+            {...props}
+            autoComplete="name"
+            value={form.name}
+            onChange={update("name")}
+            className={inputClass}
+          />
+        )}
       </Field>
       <Field label="Email" error={fields.email}>
-        {(props) => <input {...props} type="email" autoComplete="email" value={form.email} onChange={update('email')} className={inputClass} />}
+        {(props) => (
+          <input
+            {...props}
+            type="email"
+            autoComplete="email"
+            value={form.email}
+            onChange={update("email")}
+            className={inputClass}
+          />
+        )}
       </Field>
-      <Field label="Téléphone" hint="Visible uniquement par la personne avec qui vous avez une séance." error={fields.phone}>
-        {(props) => <input {...props} type="tel" autoComplete="tel" value={form.phone} onChange={update('phone')} className={inputClass} />}
+      <Field
+        label="Téléphone"
+        hint="Visible uniquement par la personne avec qui vous avez une séance."
+        error={fields.phone}
+      >
+        {(props) => (
+          <input
+            {...props}
+            type="tel"
+            autoComplete="tel"
+            value={form.phone}
+            onChange={update("phone")}
+            className={inputClass}
+          />
+        )}
       </Field>
-      <Field label="Mot de passe" hint="8 caractères minimum." error={fields.password}>
-        {(props) => <PasswordInput {...props} autoComplete="new-password" value={form.password} onChange={update('password')} />}
+      <Field
+        label="Mot de passe"
+        hint="8 caractères minimum."
+        error={fields.password}
+      >
+        {(props) => (
+          <PasswordInput
+            {...props}
+            autoComplete="new-password"
+            value={form.password}
+            onChange={update("password")}
+          />
+        )}
       </Field>
 
       <Button type="submit" size="lg" className="w-full" loading={loading}>
@@ -220,7 +405,7 @@ function RegisterForm({ onCodeSent }) {
 
 /** Saisie du code à 6 chiffres. Un seul champ : collage, remplissage auto par SMS et lecteurs d'écran fonctionnent. */
 function CodeStep({ credentials, info, onBack, onVerified }) {
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [resendIn, setResendIn] = useState(RESEND_DELAY_SECONDS);
@@ -244,12 +429,15 @@ function CodeStep({ credentials, info, onBack, onVerified }) {
     setLoading(true);
     setError(null);
     try {
-      const { token } = await Api.verifyOtp({ email: credentials.email, code: value });
+      const { token } = await Api.verifyOtp({
+        email: credentials.email,
+        code: value,
+      });
       await onVerified(token);
     } catch (e) {
       setError(e.message);
       setLoading(false);
-      setCode('');
+      setCode("");
       inputRef.current?.focus();
     }
   };
@@ -275,7 +463,11 @@ function CodeStep({ credentials, info, onBack, onVerified }) {
 
   return (
     <>
-      <h1 id="page-title" tabIndex={-1} className="text-4xl font-semibold outline-none">
+      <h1
+        id="page-title"
+        tabIndex={-1}
+        className="text-4xl font-semibold outline-none"
+      >
         Votre code de connexion
       </h1>
       {info && <Notice tone="success">{info}</Notice>}
@@ -288,11 +480,16 @@ function CodeStep({ credentials, info, onBack, onVerified }) {
         noValidate
       >
         <p>
-          Un code à 6 chiffres vient d'être envoyé à <strong className="break-all">{credentials.email}</strong>. Il est
+          Un code à 6 chiffres vient d'être envoyé à{" "}
+          <strong className="break-all">{credentials.email}</strong>. Il est
           valable 5 minutes.
         </p>
         {error && <Notice tone="error">{error}</Notice>}
-        {resent && <Notice tone="success">Nouveau code envoyé. L'ancien ne fonctionne plus.</Notice>}
+        {resent && (
+          <Notice tone="success">
+            Nouveau code envoyé. L'ancien ne fonctionne plus.
+          </Notice>
+        )}
         <Field label="Code à 6 chiffres">
           {(props) => (
             <input
@@ -302,25 +499,42 @@ function CodeStep({ credentials, info, onBack, onVerified }) {
               autoComplete="one-time-code"
               maxLength={6}
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className={cx(inputClass, 'text-center font-display text-3xl tracking-[0.5em] tabular-nums')}
+              onChange={(e) =>
+                setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              className={cx(
+                inputClass,
+                "text-center font-display text-3xl tracking-[0.5em] tabular-nums",
+              )}
             />
           )}
         </Field>
-        <Button type="submit" size="lg" className="w-full" loading={loading} disabled={code.length !== 6}>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full"
+          loading={loading}
+          disabled={code.length !== 6}
+        >
           Me connecter
         </Button>
         <div className="flex flex-wrap items-center justify-between gap-3 text-[0.95rem]">
-          <Button variant="quiet" onClick={resend} disabled={resendIn > 0}>
-            {resendIn > 0 ? `Renvoyer le code (${resendIn} s)` : 'Renvoyer le code'}
-          </Button>
+          {!credentials.oidc && (
+            <Button variant="quiet" onClick={resend} disabled={resendIn > 0}>
+              {resendIn > 0
+                ? `Renvoyer le code (${resendIn} s)`
+                : "Renvoyer le code"}
+            </Button>
+          )}
           <Button variant="quiet" onClick={onBack}>
             Changer d'email
           </Button>
         </div>
       </form>
       {import.meta.env.DEV && (
-        <Notice title="Emails de développement">Avec Docker, retrouvez votre code dans MailHog sur le port 8025.</Notice>
+        <Notice title="Emails de développement">
+          Avec Docker, retrouvez votre code dans MailHog sur le port 8025.
+        </Notice>
       )}
     </>
   );

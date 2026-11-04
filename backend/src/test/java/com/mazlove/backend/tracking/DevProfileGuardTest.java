@@ -33,6 +33,22 @@ class DevProfileGuardTest {
   }
 
   @Test
+  void disabledTwoFactorIsAllowedOnlyInDevAndFailsInProduction() {
+    var dev = new MockEnvironment().withProperty("auth.2fa-enabled", "false");
+    dev.setActiveProfiles("dev");
+    assertDoesNotThrow(() -> new DevProfileGuard(dev));
+
+    var prod =
+        new MockEnvironment()
+            .withProperty("auth.2fa-enabled", "false")
+            .withProperty("jwt.secret", "a-private-production-key-at-least-thirty-two-bytes")
+            .withProperty("cors.allowed-origins", "https://mazlove.example")
+            .withProperty("tracking.public-base-url", "https://mazlove.example");
+    prod.setActiveProfiles("prod");
+    assertThrows(IllegalStateException.class, () -> new DevProfileGuard(prod));
+  }
+
+  @Test
   void productionRequiresPrivateKeyAndExplicitHttpsOrigins() {
     var env =
         new MockEnvironment()

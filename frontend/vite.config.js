@@ -30,6 +30,8 @@ export default defineConfig({
     // origine (localhost:3000), donc aucune requête CORS ni cookie tiers.
     proxy: {
       '/api': 'http://localhost:3001',
+      '/oauth2': 'http://localhost:3001',
+      '/login/oauth2': 'http://localhost:3001',
       '/uploads': 'http://localhost:3001',
       '/ws': { target: 'http://localhost:3001', ws: true },
     },

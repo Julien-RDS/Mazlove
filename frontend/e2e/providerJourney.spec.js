@@ -221,6 +221,16 @@ test("annulation et expiration STOMP arrêtent le GPS", async ({
   const f = await fixture(context);
   await page.goto("/");
   await expect.poll(() => active(page)).toBe(1);
+  // Le watcher GPS peut démarrer avant la réception du SUBSCRIBE par le broker simulé.
+  await expect
+    .poll(() =>
+      f.sockets.some(
+        (s) =>
+          !s.closed &&
+          [...s.subscriptions.values()].includes("/topic/session.42.status"),
+      ),
+    )
+    .toBe(true);
   f.change("CANCELLED");
   await expect.poll(() => active(page)).toBe(0);
   f.change("EN_ROUTE");

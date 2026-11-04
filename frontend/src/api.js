@@ -5,6 +5,11 @@
 // est servie sur un autre domaine, ex. VITE_API_URL=https://api.mazlove.fr
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
+export function oidcLoginUrl() {
+  if (!API_BASE) return "/oauth2/authorization/oidc";
+  return new URL("/oauth2/authorization/oidc", API_BASE).toString();
+}
+
 const TOKEN_KEY = "mazlove.token";
 
 /** Émis quand l'API répond 401 à une requête authentifiée : le jeton a expiré. */
@@ -141,6 +146,7 @@ export const Api = {
   register: (body) =>
     api("/auth/register", { method: "POST", body, auth: false }),
   login: (body) => api("/auth/login", { method: "POST", body, auth: false }),
+  authConfig: () => api("/auth/config", { auth: false }),
   verifyOtp: (body) =>
     api("/auth/verify-otp", { method: "POST", body, auth: false }),
 

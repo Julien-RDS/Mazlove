@@ -7,11 +7,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class DevProfileGuard {
   public DevProfileGuard(Environment env) {
-    if (env.acceptsProfiles(Profiles.of("prod"))
+    boolean production = env.acceptsProfiles(Profiles.of("prod"));
+    boolean development = env.acceptsProfiles(Profiles.of("dev & !prod"));
+    boolean twoFactorEnabled = env.getProperty("auth.2fa-enabled", Boolean.class, true);
+    if (production
         && (env.acceptsProfiles(Profiles.of("dev"))
             || env.getProperty("mazlove.dev.fixed-otp", Boolean.class, false)))
       throw new IllegalStateException("Le profil dev et l'OTP fixe sont interdits en production.");
-    if (env.acceptsProfiles(Profiles.of("prod"))) {
+    if (!twoFactorEnabled && !development)
+      throw new IllegalStateException(
+          "La double authentification ne peut être désactivée qu'avec le profil dev.");
+    if (production) {
       String secret = env.getProperty("jwt.secret", "");
       if (secret.length() < 32 || secret.contains("CHANGE_ME") || secret.startsWith("dev_secret"))
         throw new IllegalStateException("Une clé JWT privée est obligatoire en production.");

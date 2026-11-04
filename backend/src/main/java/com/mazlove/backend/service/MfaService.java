@@ -37,9 +37,8 @@ public class MfaService {
   private final StringRedisTemplate redisTemplate;
   private final EmailService emailService;
   private final boolean devLogOtp;
-
-  @org.springframework.beans.factory.annotation.Autowired
-  private org.springframework.core.env.Environment environment;
+  private final boolean enabled;
+  private final org.springframework.core.env.Environment environment;
 
   /**
    * @param devLogOtp MFA_DEV_LOG_OTP=true affiche aussi le code dans les logs en développement.
@@ -47,10 +46,18 @@ public class MfaService {
   public MfaService(
       StringRedisTemplate redisTemplate,
       EmailService emailService,
-      @Value("${mfa.dev-log-otp:false}") boolean devLogOtp) {
+      @Value("${mfa.dev-log-otp:false}") boolean devLogOtp,
+      @Value("${auth.2fa-enabled:true}") boolean enabled,
+      org.springframework.core.env.Environment environment) {
     this.redisTemplate = redisTemplate;
     this.emailService = emailService;
     this.devLogOtp = devLogOtp;
+    this.enabled = enabled;
+    this.environment = environment;
+  }
+
+  public boolean isEnabled() {
+    return enabled;
   }
 
   /**
@@ -59,6 +66,9 @@ public class MfaService {
    * AuthController en générait un second dans sa réponse, ce qui rendait le premier invalide.
    */
   public void sendOtp(String email) {
+    if (!enabled) {
+      return;
+    }
     String normalized = Emails.normalize(email);
     String otp = generateOtp(normalized);
     redisTemplate.delete(ATTEMPTS_PREFIX + normalized);
@@ -115,9 +125,7 @@ public class MfaService {
   /** Code numérique à 6 chiffres stocké avec expiration. Privé : passer par sendOtp(). */
   private String generateOtp(String normalizedEmail) {
     String otp =
-        environment != null
-                && environment.acceptsProfiles(
-                    org.springframework.core.env.Profiles.of("dev & !prod"))
+        environment.acceptsProfiles(org.springframework.core.env.Profiles.of("dev & !prod"))
                 && environment.getProperty("mazlove.dev.fixed-otp", Boolean.class, false)
             ? "123456"
             : buildNumericCode(OTP_LENGTH);

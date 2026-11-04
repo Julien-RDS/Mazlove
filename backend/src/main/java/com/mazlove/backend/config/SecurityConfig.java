@@ -3,10 +3,12 @@ package com.mazlove.backend.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mazlove.backend.dto.ApiError;
 import com.mazlove.backend.service.JWTService;
+import com.mazlove.backend.service.OidcAccountService;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,8 +23,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -34,6 +39,7 @@ public class SecurityConfig {
   private final JWTService jwtService;
   private final UserDetailsService userDetailsService;
   private final ObjectMapper objectMapper;
+  private final ClientRegistrationRepository oidcClients;
 
   /**
    * Origines autorisées à appeler l'API depuis un navigateur, via ALLOWED_ORIGINS. Ex :
@@ -44,10 +50,14 @@ public class SecurityConfig {
   private List<String> allowedOrigins;
 
   public SecurityConfig(
-      JWTService jwtService, UserDetailsService userDetailsService, ObjectMapper objectMapper) {
+      JWTService jwtService,
+      UserDetailsService userDetailsService,
+      ObjectMapper objectMapper,
+      Optional<ClientRegistrationRepository> oidcClients) {
     this.jwtService = jwtService;
     this.userDetailsService = userDetailsService;
     this.objectMapper = objectMapper;
+    this.oidcClients = oidcClients.orElse(null);
   }
 
   /**
@@ -57,11 +67,17 @@ public class SecurityConfig {
    * méthode HTTP ci-dessous.
    */
   @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+  public SecurityFilterChain securityFilterChain(
+      HttpSecurity http, OidcAccountService oidcAccounts, OidcLoginHandlers oidcHandlers)
+      throws Exception {
     http.csrf(AbstractHttpConfigurer::disable) // API sans cookie de session : pas de CSRF possible
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .sessionManagement(
-            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            session ->
+                session.sessionCreationPolicy(
+                    oidcClients == null
+                        ? SessionCreationPolicy.STATELESS
+                        : SessionCreationPolicy.IF_REQUIRED))
         .authorizeHttpRequests(
             auth ->
                 auth
@@ -69,6 +85,8 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.OPTIONS, "/**")
                     .permitAll()
                     .requestMatchers("/api/auth/**", "/api/public/trips/**", "/api/dev/login-as")
+                    .permitAll()
+                    .requestMatchers("/oauth2/**", "/login/oauth2/**")
                     .permitAll()
                     .requestMatchers("/api/admin/**")
                     .hasRole("ADMIN")
@@ -115,6 +133,26 @@ public class SecurityConfig {
         .addFilterBefore(
             new JWTAuthenticationFilter(jwtService, userDetailsService),
             UsernamePasswordAuthenticationFilter.class);
+
+    if (oidcClients != null) {
+      OidcUserService delegate = new OidcUserService();
+      http.securityContext(
+              security -> security.securityContextRepository(new NullSecurityContextRepository()))
+          .oauth2Login(
+              oauth ->
+                  oauth
+                      .clientRegistrationRepository(oidcClients)
+                      .userInfoEndpoint(
+                          userInfo ->
+                              userInfo.oidcUserService(
+                                  request -> {
+                                    var user = delegate.loadUser(request);
+                                    oidcAccounts.requireExistingVerifiedEmail(user);
+                                    return user;
+                                  }))
+                      .successHandler(oidcHandlers::success)
+                      .failureHandler(oidcHandlers::failure));
+    }
 
     return http.build();
   }

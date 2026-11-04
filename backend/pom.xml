@@ -74,6 +74,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
         <!-- jjwt est découpé en 3 artefacts depuis la 0.10 : on compile uniquement contre l'API,
              l'implémentation et le module Jackson ne servent qu'à l'exécution. -->
         <dependency>
