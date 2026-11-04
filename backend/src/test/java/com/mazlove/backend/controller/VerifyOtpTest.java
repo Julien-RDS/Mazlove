@@ -38,7 +38,10 @@ class VerifyOtpTest {
         mvc.perform(
             post("/api/auth/verify-otp")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"alice@example.test\",\"code\":\"123456\"}"));
+                .content(
+                    "{\"email\":\"alice@example.test\",\"code\":\"123456\",\"challenge\":\""
+                        + "a".repeat(64)
+                        + "\"}"));
     if (valid) result.andExpect(status().isOk()).andExpect(jsonPath("$.token").value("test-jwt"));
     else {
       result.andExpect(status().isUnauthorized()).andExpect(jsonPath("$.token").doesNotExist());

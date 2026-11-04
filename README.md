@@ -185,9 +185,9 @@ Toutes les erreurs ont le même format : `{ "status": 409, "message": "…", "fi
 ```bash
 curl -X POST localhost:3001/api/auth/login -H 'Content-Type: application/json' \
      -d '{"email":"client@mazlove.test","password":"Mazlove2026!"}'
-# lire le code dans MailHog ou les logs de développement, puis :
+# lire le code dans MailHog ou les logs de développement et copier le champ challenge de /login :
 curl -X POST localhost:3001/api/auth/verify-otp -H 'Content-Type: application/json' \
-     -d '{"email":"client@mazlove.test","code":"123456"}'
+     -d '{"email":"client@mazlove.test","code":"123456","challenge":"COLLER_LE_CHALLENGE_RECU"}'
 ```
 
 ## Tests

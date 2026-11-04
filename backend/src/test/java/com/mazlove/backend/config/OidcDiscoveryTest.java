@@ -10,7 +10,55 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 
 class OidcDiscoveryTest {
   @Test
-  void unavailableIssuerDoesNotBlockStartupAndFailedDiscoveryCanRetry() throws Exception {
+  void silentProviderTimesOutAndConcurrentRequestDoesNotQueueBehindIt() throws Exception {
+    var entered = new java.util.concurrent.CountDownLatch(1);
+    var release = new java.util.concurrent.CountDownLatch(1);
+    var server = com.sun.net.httpserver.HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          entered.countDown();
+          try {
+            release.await(5, java.util.concurrent.TimeUnit.SECONDS);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          } finally {
+            exchange.close();
+          }
+        });
+    server.start();
+    var executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+    try {
+      var env =
+          new org.springframework.mock.env.MockEnvironment()
+              .withProperty("auth.oidc.issuer", "http://127.0.0.1:" + server.getAddress().getPort())
+              .withProperty("auth.oidc.client-id", "client")
+              .withProperty("auth.oidc.client-secret", "secret");
+      var clients =
+          new BoundedOidcClients(
+              new OidcSettings(env), "http://localhost", java.time.Duration.ofMillis(200));
+      var first = executor.submit(() -> clients.findByRegistrationId("oidc"));
+      assertTrue(entered.await(2, java.util.concurrent.TimeUnit.SECONDS));
+      assertTimeoutPreemptively(
+          java.time.Duration.ofSeconds(1),
+          () ->
+              assertThrows(
+                  IllegalStateException.class, () -> clients.findByRegistrationId("oidc")));
+      var failure =
+          assertThrows(
+              java.util.concurrent.ExecutionException.class,
+              () -> first.get(2, java.util.concurrent.TimeUnit.SECONDS));
+      assertInstanceOf(
+          org.springframework.web.client.ResourceAccessException.class, failure.getCause());
+    } finally {
+      release.countDown();
+      executor.shutdownNow();
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void unavailableIssuerDoesNotBlockStartupAndDiscoveryIsThrottled() throws Exception {
     var requests = new AtomicInteger();
     var server = com.sun.net.httpserver.HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext(
@@ -40,11 +88,12 @@ class OidcDiscoveryTest {
       assertEquals(0, requests.get());
       var clients = context.getBean(ClientRegistrationRepository.class);
       assertNull(clients.findByRegistrationId("unknown"));
-      assertThrows(IllegalArgumentException.class, () -> clients.findByRegistrationId("oidc"));
+      assertThrows(RuntimeException.class, () -> clients.findByRegistrationId("oidc"));
       int count = requests.get();
       assertTrue(count > 0);
-      assertThrows(IllegalArgumentException.class, () -> clients.findByRegistrationId("oidc"));
-      assertTrue(requests.get() > count);
+      assertThrows(RuntimeException.class, () -> clients.findByRegistrationId("oidc"));
+      assertEquals(
+          count, requests.get()); // temporisation après échec : pas de rafale de découvertes
     } finally {
       server.stop(0);
     }

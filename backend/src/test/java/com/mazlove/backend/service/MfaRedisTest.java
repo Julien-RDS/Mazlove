@@ -19,10 +19,35 @@ import org.springframework.web.server.ResponseStatusException;
 /** Redis jetable dédié au processus de test, sans Docker ni connexion aux données applicatives. */
 @EnabledIfEnvironmentVariable(named = "MAZLOVE_TEST_REDIS_SERVER", matches = ".+")
 class MfaRedisTest {
+  @Test
+  void emailOnlyOrWrongChallengeCannotSpendVictimsBudget() {
+    challenge = mfa.sendOtp(email);
+    for (int i = 0; i < 20; i++) {
+      assertFalse(mfa.verifyOtp(new OtpDTO(email, "000000", "0".repeat(64))));
+      assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456", null)));
+    }
+    assertNull(redis.opsForValue().get("otp-attempts:" + email));
+    assertTrue(mfa.verifyOtp(new OtpDTO(email, "123456", challenge)));
+  }
+
+  @Test
+  void resendRevokesPreviousChallengeAndSuccessResetsBudget() {
+    String previous = mfa.sendOtp(email);
+    for (int i = 0; i < 4; i++) assertFalse(mfa.verifyOtp(new OtpDTO(email, "000000", previous)));
+    redis.delete("otp-send:" + email);
+    challenge = mfa.sendOtp(email);
+    assertNotEquals(previous, challenge);
+    assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456", previous)));
+    assertEquals("4", redis.opsForValue().get("otp-attempts:" + email));
+    assertTrue(mfa.verifyOtp(new OtpDTO(email, "123456", challenge)));
+    assertNull(redis.opsForValue().get("otp-attempts:" + email));
+  }
+
   static Process server;
   static LettuceConnectionFactory factory;
   static StringRedisTemplate redis;
   String email;
+  String challenge;
   EmailService mail;
   MfaService mfa;
 
@@ -79,13 +104,13 @@ class MfaRedisTest {
 
   @Test
   void aCodeCanBeConsumedOnlyOnceEvenConcurrently() throws Exception {
-    mfa.sendOtp(email);
+    challenge = mfa.sendOtp(email);
     var executor = Executors.newFixedThreadPool(2);
     try {
-      var first = executor.submit(() -> mfa.verifyOtp(new OtpDTO(email, "123456")));
-      var second = executor.submit(() -> mfa.verifyOtp(new OtpDTO(email, "123456")));
+      var first = executor.submit(() -> mfa.verifyOtp(new OtpDTO(email, "123456", challenge)));
+      var second = executor.submit(() -> mfa.verifyOtp(new OtpDTO(email, "123456", challenge)));
       assertEquals(1, (first.get() ? 1 : 0) + (second.get() ? 1 : 0));
-      assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456")));
+      assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456", challenge)));
     } finally {
       executor.shutdownNow();
     }
@@ -93,13 +118,13 @@ class MfaRedisTest {
 
   @Test
   void resendPreservesAttemptsAndFiveWrongGuessesBlockFurtherIssuance() {
-    mfa.sendOtp(email);
-    for (int i = 0; i < 2; i++) assertFalse(mfa.verifyOtp(new OtpDTO(email, "000000")));
+    challenge = mfa.sendOtp(email);
+    for (int i = 0; i < 2; i++) assertFalse(mfa.verifyOtp(new OtpDTO(email, "000000", challenge)));
     redis.delete("otp-send:" + email); // simule la fin du délai de renvoi, sans attendre 30 s
-    mfa.sendOtp(email);
+    challenge = mfa.sendOtp(email);
     assertEquals("2", redis.opsForValue().get("otp-attempts:" + email));
-    for (int i = 0; i < 3; i++) assertFalse(mfa.verifyOtp(new OtpDTO(email, "000000")));
-    assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456")));
+    for (int i = 0; i < 3; i++) assertFalse(mfa.verifyOtp(new OtpDTO(email, "000000", challenge)));
+    assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456", challenge)));
     redis.delete("otp-send:" + email);
     assertEquals(
         429,
@@ -111,25 +136,25 @@ class MfaRedisTest {
 
   @Test
   void sendCooldownLimitsEmailsAndDoesNotReplaceTheExistingCode() {
-    mfa.sendOtp(email);
+    challenge = mfa.sendOtp(email);
     assertEquals(
         429,
         assertThrows(ResponseStatusException.class, () -> mfa.sendOtp(email))
             .getStatusCode()
             .value());
     verify(mail, times(1)).sendOtpEmail(email, "123456");
-    assertTrue(mfa.verifyOtp(new OtpDTO(email, "123456")));
+    assertTrue(mfa.verifyOtp(new OtpDTO(email, "123456", challenge)));
     assertTrue(redis.getExpire("otp-send:" + email) <= 30);
   }
 
   @Test
   void expiredCodeAndMissingCodeAreRejected() throws Exception {
-    assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456")));
-    mfa.sendOtp(email);
+    assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456", challenge)));
+    challenge = mfa.sendOtp(email);
     assertTrue(redis.getExpire("otp:" + email) <= 300);
     redis.expire("otp:" + email, Duration.ofMillis(1));
     Thread.sleep(20);
-    assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456")));
+    assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456", challenge)));
   }
 
   @Test
@@ -137,6 +162,6 @@ class MfaRedisTest {
     doThrow(new MailSendException("test")).when(mail).sendOtpEmail(email, "123456");
     assertThrows(MailSendException.class, () -> mfa.sendOtp(email));
     assertNull(redis.opsForValue().get("otp:" + email));
-    assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456")));
+    assertFalse(mfa.verifyOtp(new OtpDTO(email, "123456", challenge)));
   }
 }

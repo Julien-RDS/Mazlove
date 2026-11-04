@@ -38,8 +38,9 @@ public class OidcLoginHandlers {
     String email = accounts.requireExistingVerifiedEmail((OidcUser) result.getPrincipal());
     clearSession(request);
     if (mfa.isEnabled()) {
+      String challenge;
       try {
-        mfa.sendOtp(email);
+        challenge = mfa.sendOtp(email);
       } catch (org.springframework.mail.MailException e) {
         redirect(response, "oidcError", "mail_unavailable");
         return;
@@ -50,7 +51,12 @@ public class OidcLoginHandlers {
         redirect(response, "oidcError", "otp_throttled");
         return;
       }
-      redirect(response, "oidcEmail", email);
+      response.sendRedirect(
+          publicBaseUrl
+              + "/#/connexion?oidcEmail="
+              + URLEncoder.encode(email, StandardCharsets.UTF_8)
+              + "&challenge="
+              + challenge);
     } else {
       redirect(response, "oidcToken", auth.generateJwt(email));
     }

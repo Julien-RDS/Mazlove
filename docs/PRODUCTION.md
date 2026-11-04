@@ -35,6 +35,8 @@ Les propriétés du profil prod désactivent l’initialisation SQL automatique,
 
 En production, le garde refuse aussi le profil `demo` et `MFA_DEV_LOG_OTP=true`, même si cette variable surcharge les propriétés du profil prod. L’envoi OTP est limité à un par adresse et par 30 secondes ; cinq erreurs bloquent la vérification et les renvois jusqu’à expiration du budget de cinq minutes. Un renvoi ne remet pas ce budget à zéro. La consommation du code est atomique dans Redis. Après un échec SMTP, le code est invalidé si Redis reste accessible ; sinon son TTL borne sa présence résiduelle. Les tests correspondants peuvent utiliser un Redis local jetable via `MAZLOVE_TEST_REDIS_SERVER=/chemin/redis-server mvn clean test`, sans Docker ni base applicative.
 
+La vérification exige aussi le `challenge` aléatoire de 256 bits remis après validation du mot de passe, ou dans le retour SSO. Sans ce défi, aucun essai n’est dépensé. Le défi est renouvelé à chaque renvoi et lié à l’email ; une vérification réussie efface aussi le budget d’erreurs. **Déployer frontend et backend ensemble** : les anciens codes sans défi exigent de recommencer la connexion. Cible explicite de contrôle Redis : `make test-auth-redis MAZLOVE_TEST_REDIS_SERVER=/chemin/absolu/redis-server`. Cette cible échoue si le binaire n’est pas fourni ; `make test` seul n’active pas les tests Redis.
+
 | Profil | `AUTH_2FA_ENABLED=true` | `AUTH_2FA_ENABLED=false` |
 | --- | --- | --- |
 | DEV (`dev`) | OTP exigé | JWT après le mot de passe, sans OTP |
@@ -44,6 +46,8 @@ En production, le garde refuse aussi le profil `demo` et `MFA_DEV_LOG_OTP=true`,
 L’OIDC est désactivé par défaut et ne s’active que si `OIDC_ISSUER`, `OIDC_CLIENT_ID` et `OIDC_CLIENT_SECRET` sont tous définis. Aucun secret ne doit être placé dans Git. Le fournisseur doit autoriser l’URL `https://votre-domaine/login/oauth2/code/oidc`, selon le format Spring `/login/oauth2/code/{id}`. Pour Google, utiliser l’issuer `https://accounts.google.com`. Pour Microsoft Entra ID, utiliser `https://login.microsoftonline.com/<tenant-id>/v2.0` et enregistrer la même URL de redirection dans l’application Entra.
 
 La découverte des paramètres du fournisseur s’effectue au premier usage SSO, puis est conservée en mémoire. Une découverte échouée pourra être retentée à la demande suivante ; elle ne bloque pas le démarrage de l’application. Les tests de callback utilisent un fournisseur HTTP local et des jetons RSA signés, ce qui ne remplace pas un essai chez Google ou Microsoft.
+
+La découverte applique un délai de connexion de 2 s et un délai de lecture de 2 s. Une seule découverte peut être en cours : les autres demandes échouent immédiatement avec une redirection explicite vers l’interface. Après échec, un délai de 5 s évite les rafales de tentatives. Les autres parcours ne prennent pas ce verrou.
 
 Le SSO rattache uniquement un compte Mazlove existant dont le claim `email_verified` vaut explicitement `true`; il ne crée pas de compte. En production, il est suivi de l’OTP email Mazlove. Les claims `amr` et `acr` diffèrent selon les fournisseurs et politiques : ils ne sont pas considérés ici comme une preuve suffisante pour supprimer l’OTP local. Le frontend n’affiche « Continuer avec… » que lorsque `/api/auth/config` indique que les trois paramètres OIDC sont présents.
 

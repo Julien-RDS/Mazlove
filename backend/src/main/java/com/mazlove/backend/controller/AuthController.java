@@ -62,13 +62,14 @@ public class AuthController {
     if (!mfaService.isEnabled()) {
       return ResponseEntity.ok(
           new LoginResponseDTO(
-              "Connexion réussie.", authService.generateJwt(loginDTO.email()), false));
+              "Connexion réussie.", authService.generateJwt(loginDTO.email()), false, null));
     }
     // Génère ET stocke le code dans Redis en un seul appel (plus de second code qui écrase le
     // premier).
-    mfaService.sendOtp(loginDTO.email());
+    String challenge = mfaService.sendOtp(loginDTO.email());
     return ResponseEntity.ok(
-        new LoginResponseDTO("Code de connexion envoyé à " + loginDTO.email().trim(), null, true));
+        new LoginResponseDTO(
+            "Code de connexion envoyé à " + loginDTO.email().trim(), null, true, challenge));
   }
 
   @Operation(summary = "Configuration publique des méthodes de connexion")

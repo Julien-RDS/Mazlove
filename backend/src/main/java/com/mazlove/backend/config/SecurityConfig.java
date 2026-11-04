@@ -135,6 +135,33 @@ public class SecurityConfig {
             UsernamePasswordAuthenticationFilter.class);
 
     if (oidcClients != null) {
+      http.addFilterBefore(
+          new org.springframework.web.filter.OncePerRequestFilter() {
+            @Override
+            protected void doFilterInternal(
+                jakarta.servlet.http.HttpServletRequest request,
+                jakarta.servlet.http.HttpServletResponse response,
+                jakarta.servlet.FilterChain chain)
+                throws jakarta.servlet.ServletException, java.io.IOException {
+              if ((request.getContextPath() + "/oauth2/authorization/oidc")
+                  .equals(request.getRequestURI())) {
+                try {
+                  oidcClients.findByRegistrationId("oidc");
+                } catch (RuntimeException failure) {
+                  oidcHandlers.failure(
+                      request,
+                      response,
+                      new org.springframework.security.oauth2.core.OAuth2AuthenticationException(
+                          new org.springframework.security.oauth2.core.OAuth2Error(
+                              "provider_unavailable")));
+                  return;
+                }
+              }
+              chain.doFilter(request, response);
+            }
+          },
+          org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter
+              .class);
       OidcUserService delegate = new OidcUserService();
       http.securityContext(
               security -> security.securityContextRepository(new NullSecurityContextRepository()))

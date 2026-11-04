@@ -32,6 +32,7 @@ class AuthControllerTwoFactorTest {
     AuthService auth = mock(AuthService.class);
     MfaService mfa = mock(MfaService.class);
     when(mfa.isEnabled()).thenReturn(true);
+    when(mfa.sendOtp("alice@example.com")).thenReturn("a".repeat(64));
     var controller = new AuthController(auth, mfa, new OidcSettings(new MockEnvironment()));
 
     var result = controller.login(new LoginDTO("alice@example.com", "secret")).getBody();
@@ -39,6 +40,7 @@ class AuthControllerTwoFactorTest {
     assertNotNull(result);
     assertNull(result.token());
     assertTrue(result.mfaRequired());
+    assertEquals("a".repeat(64), result.challenge());
     verify(mfa).sendOtp("alice@example.com");
   }
 }

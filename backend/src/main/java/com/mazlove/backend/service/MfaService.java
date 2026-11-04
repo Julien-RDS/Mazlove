@@ -52,7 +52,7 @@ public class MfaService {
           if tonumber(redis.call('GET', KEYS[2]) or '0') >= 5 then
             redis.call('DEL', KEYS[1]); return 0
           end
-          if ARGV[2] == '1' then redis.call('DEL', KEYS[1]); return 1 end
+          if ARGV[2] == '1' then redis.call('DEL', KEYS[1], KEYS[2]); return 1 end
           local n = redis.call('INCR', KEYS[2])
           if n == 1 then redis.call('EXPIRE', KEYS[2], 300) end
           if n >= 5 then redis.call('DEL', KEYS[1]) end
@@ -94,18 +94,22 @@ public class MfaService {
    * C'est le SEUL point d'entrée pour créer un OTP : l'ancien AuthController en générait un second
    * dans sa réponse, ce qui rendait le premier invalide.
    */
-  public void sendOtp(String email) {
+  public String sendOtp(String email) {
     if (!enabled) {
-      return;
+      return null;
     }
     String normalized = Emails.normalize(email);
     String otp = generateOtp();
+    byte[] random = new byte[32];
+    RANDOM.nextBytes(random);
+    String challenge = java.util.HexFormat.of().formatHex(random);
+    String storedCode = challenge + ":" + otp;
     Long issued =
         redisTemplate.execute(
             ISSUE,
             List.of(
                 OTP_PREFIX + normalized, ATTEMPTS_PREFIX + normalized, "otp-send:" + normalized),
-            otp);
+            storedCode);
     if (!Long.valueOf(1).equals(issued))
       throw new org.springframework.web.server.ResponseStatusException(
           org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
@@ -117,7 +121,7 @@ public class MfaService {
       emailService.sendOtpEmail(normalized, otp);
     } catch (org.springframework.mail.MailException failure) {
       try {
-        redisTemplate.execute(REMOVE, List.of(OTP_PREFIX + normalized), otp);
+        redisTemplate.execute(REMOVE, List.of(OTP_PREFIX + normalized), storedCode);
       } catch (org.springframework.dao.DataAccessException cleanupFailure) {
         failure.addSuppressed(cleanupFailure);
       }
@@ -130,6 +134,7 @@ public class MfaService {
           normalized,
           otp);
     }
+    return challenge;
   }
 
   /**
@@ -137,6 +142,7 @@ public class MfaService {
    * erronés, le code est détruit et le budget reste bloqué jusqu'à son expiration.
    */
   public boolean verifyOtp(OtpDTO otpDTO) {
+    if (otpDTO.challenge() == null || !otpDTO.challenge().matches("[0-9a-f]{64}")) return false;
     String email = Emails.normalize(otpDTO.email());
     String key = OTP_PREFIX + email;
     String attemptsKey = ATTEMPTS_PREFIX + email;
@@ -145,12 +151,17 @@ public class MfaService {
     if (stored == null) {
       return false;
     }
+    int separator = stored.indexOf(':');
+    if (separator != 64
+        || !MessageDigest.isEqual(
+            stored.substring(0, separator).getBytes(StandardCharsets.UTF_8),
+            otpDTO.challenge().getBytes(StandardCharsets.UTF_8))) return false;
 
     // Comparaison à temps constant : ne révèle pas combien de chiffres sont corrects.
     boolean valid =
         MessageDigest.isEqual(
             stored.getBytes(StandardCharsets.UTF_8),
-            otpDTO.code().getBytes(StandardCharsets.UTF_8));
+            (otpDTO.challenge() + ":" + otpDTO.code()).getBytes(StandardCharsets.UTF_8));
     // Comparaison du code puis consommation atomique : deux requêtes concurrentes
     // ne peuvent pas réutiliser le même code ni réinitialiser le budget d'essais.
     return Long.valueOf(1)

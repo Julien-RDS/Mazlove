@@ -11,7 +11,7 @@ export COMPOSE_PROFILES ?= dev
 # Commit embarqué dans les images (étiquette) et dans le frontend (version.json) : voir `make version`.
 export GIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 
-.PHONY: up down logs seed test clean status swagger mail db version
+.PHONY: up down logs seed test test-auth-redis clean status swagger mail db version
 
 up:
 	$(COMPOSE) up -d --build
@@ -27,6 +27,11 @@ seed:
 
 test:
 	cd backend && mvn test
+
+# Redis jetable lancé/arrêté par les tests ; aucun service applicatif ni Docker.
+test-auth-redis:
+	@test -n "$(MAZLOVE_TEST_REDIS_SERVER)" && test -x "$(MAZLOVE_TEST_REDIS_SERVER)" || { echo 'Définir MAZLOVE_TEST_REDIS_SERVER avec le chemin absolu de redis-server'; exit 2; }
+	cd backend && MAZLOVE_TEST_REDIS_SERVER="$(MAZLOVE_TEST_REDIS_SERVER)" mvn -Dtest=MfaRedisTest test
 
 clean:
 	$(COMPOSE) down -v --rmi local

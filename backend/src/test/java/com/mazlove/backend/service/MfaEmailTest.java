@@ -64,8 +64,8 @@ class MfaEmailTest {
                     "otp-attempts:alice@example.com",
                     "otp-send:alice@example.com")),
             code.capture());
-    assertTrue(code.getValue().matches("[0-9]{6}"));
-    verify(email).sendOtpEmail("alice@example.com", code.getValue());
+    assertTrue(code.getValue().matches("[0-9a-f]{64}:[0-9]{6}"));
+    verify(email).sendOtpEmail("alice@example.com", code.getValue().substring(65));
   }
 
   @Test

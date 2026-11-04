@@ -16,14 +16,16 @@ export default function AuthScreen({ query, onAuthenticated }) {
   );
   const [step, setStep] = useState(query.oidcEmail ? "code" : "form"); // form | code
   const [credentials, setCredentials] = useState(
-    query.oidcEmail ? { email: query.oidcEmail, oidc: true } : null,
+    query.oidcEmail
+      ? { email: query.oidcEmail, challenge: query.challenge, oidc: true }
+      : null,
   );
   const [info, setInfo] = useState(null);
   const [oidc, setOidc] = useState({ enabled: false, provider: "SSO" });
   const oidcHandled = useRef(false);
 
-  const goToCode = (email, password, message) => {
-    setCredentials({ email, password });
+  const goToCode = (email, password, message, challenge) => {
+    setCredentials({ email, password, challenge });
     setInfo(message);
     setStep("code");
   };
@@ -66,9 +68,8 @@ export default function AuthScreen({ query, onAuthenticated }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.oidcToken]);
 
-  const oidcError =
-    query.oidcError &&
-    ({
+  const oidcErrors = new Map(
+    Object.entries({
       email_not_verified: "Le fournisseur n'a pas vérifié votre adresse email.",
       email_missing: "Le fournisseur n'a pas transmis votre adresse email.",
       account_not_found:
@@ -78,12 +79,18 @@ export default function AuthScreen({ query, onAuthenticated }) {
         "Le code n’a pas pu être envoyé. Réessayez la connexion.",
       auth_unavailable:
         "La connexion est temporairement indisponible. Réessayez plus tard.",
+      provider_unavailable:
+        "Le fournisseur de connexion est indisponible. Réessayez plus tard.",
       otp_throttled: "Trop de demandes de code. Patientez avant de réessayer.",
       access_denied:
         "La connexion a été annulée ou refusée chez le fournisseur.",
       authorization_request_not_found:
         "La connexion SSO a expiré. Recommencez la connexion.",
-    }[query.oidcError] ||
+    }),
+  );
+  const oidcError =
+    query.oidcError &&
+    (oidcErrors.get(query.oidcError) ||
       "La connexion SSO a échoué. Recommencez la connexion.");
 
   return (
@@ -152,6 +159,9 @@ export default function AuthScreen({ query, onAuthenticated }) {
             setInfo(null);
           }}
           onVerified={finish}
+          onChallenge={(challenge) =>
+            setCredentials((previous) => ({ ...previous, challenge }))
+          }
         />
       )}
     </div>
@@ -204,7 +214,7 @@ function LoginForm({ onCodeSent, onAuthenticated }) {
     try {
       const result = await Api.login({ email: email.trim(), password });
       if (result.token) await onAuthenticated(result.token);
-      else onCodeSent(email.trim(), password, result.message);
+      else onCodeSent(email.trim(), password, result.message, result.challenge);
     } catch (e) {
       setError(e.fields ? null : e.message);
       setFields(e.fields || {});
@@ -287,6 +297,7 @@ function RegisterForm({ onCodeSent, onAuthenticated }) {
           payload.email,
           payload.password,
           "Compte créé. Saisissez le code reçu pour vous connecter.",
+          result.challenge,
         );
     } catch (e) {
       setError(e.fields ? "Certains champs sont à corriger." : e.message);
@@ -415,7 +426,7 @@ function RegisterForm({ onCodeSent, onAuthenticated }) {
 }
 
 /** Saisie du code à 6 chiffres. Un seul champ : collage, remplissage auto par SMS et lecteurs d'écran fonctionnent. */
-function CodeStep({ credentials, info, onBack, onVerified }) {
+function CodeStep({ credentials, info, onBack, onVerified, onChallenge }) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -443,6 +454,7 @@ function CodeStep({ credentials, info, onBack, onVerified }) {
       const { token } = await Api.verifyOtp({
         email: credentials.email,
         code: value,
+        challenge: credentials.challenge,
       });
       await onVerified(token);
     } catch (e) {
@@ -463,7 +475,11 @@ function CodeStep({ credentials, info, onBack, onVerified }) {
     setError(null);
     setResent(false);
     try {
-      await Api.login(credentials);
+      const result = await Api.login({
+        email: credentials.email,
+        password: credentials.password,
+      });
+      onChallenge(result.challenge);
       submittedCode.current = null;
       setResent(true);
       setResendIn(RESEND_DELAY_SECONDS);

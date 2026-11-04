@@ -24,6 +24,32 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class OidcSecurityTest {
+  @Test
+  void discoveryFailureRedirectsToUiWithoutBreakingOtherApiRequests() {
+    var clients = mock(ClientRegistrationRepository.class);
+    org.mockito.Mockito.when(clients.findByRegistrationId("oidc"))
+        .thenThrow(new IllegalStateException("test"));
+    runner
+        .withBean(ClientRegistrationRepository.class, () -> clients)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              var mvc =
+                  MockMvcBuilders.webAppContextSetup(context)
+                      .addFilter(
+                          context.getBean(
+                              "springSecurityFilterChain", jakarta.servlet.Filter.class))
+                      .build();
+              mvc.perform(get("/oauth2/authorization/oidc"))
+                  .andExpect(status().is3xxRedirection())
+                  .andExpect(
+                      org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                          .redirectedUrl(
+                              "http://localhost:3000/#/connexion?oidcError=provider_unavailable"));
+              mvc.perform(get("/api/users/me")).andExpect(status().isUnauthorized());
+            });
+  }
+
   @org.springframework.context.annotation.Configuration
   @org.springframework.web.servlet.config.annotation.EnableWebMvc
   static class MvcConfiguration {}

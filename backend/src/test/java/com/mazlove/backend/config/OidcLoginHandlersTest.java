@@ -21,6 +21,7 @@ class OidcLoginHandlersTest {
     var principal = mock(OidcUser.class);
     when(accounts.requireExistingVerifiedEmail(principal)).thenReturn("alice@example.test");
     when(mfa.isEnabled()).thenReturn(true);
+    when(mfa.sendOtp("alice@example.test")).thenReturn("a".repeat(64));
     doThrow(new org.springframework.data.redis.RedisConnectionFailureException("test"))
         .when(mfa)
         .sendOtp("alice@example.test");
@@ -42,6 +43,7 @@ class OidcLoginHandlersTest {
     var principal = mock(OidcUser.class);
     when(accounts.requireExistingVerifiedEmail(principal)).thenReturn("alice@example.test");
     when(mfa.isEnabled()).thenReturn(true);
+    when(mfa.sendOtp("alice@example.test")).thenReturn("a".repeat(64));
     var request = new MockHttpServletRequest();
     request.getSession();
     var response = new MockHttpServletResponse();
@@ -51,7 +53,30 @@ class OidcLoginHandlersTest {
     verifyNoInteractions(auth);
     assertNull(request.getSession(false));
     assertEquals(
-        "https://app.example.test/#/connexion?oidcEmail=alice%40example.test",
+        "https://app.example.test/#/connexion?oidcEmail=alice%40example.test&challenge="
+            + "a".repeat(64),
         response.getRedirectedUrl());
+  }
+
+  @Test
+  void throttledOtpRedirectsWithoutIssuingJwt() throws Exception {
+    var accounts = mock(OidcAccountService.class);
+    var mfa = mock(MfaService.class);
+    var auth = mock(AuthService.class);
+    var principal = mock(OidcUser.class);
+    when(accounts.requireExistingVerifiedEmail(principal)).thenReturn("alice@example.test");
+    when(mfa.isEnabled()).thenReturn(true);
+    when(mfa.sendOtp(anyString()))
+        .thenThrow(
+            new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.TOO_MANY_REQUESTS));
+    var request = new MockHttpServletRequest();
+    request.getSession();
+    var response = new MockHttpServletResponse();
+    new OidcLoginHandlers(accounts, mfa, auth, "https://app.example.test")
+        .success(request, response, new UsernamePasswordAuthenticationToken(principal, ""));
+    assertTrue(response.getRedirectedUrl().endsWith("oidcError=otp_throttled"));
+    assertNull(request.getSession(false));
+    verifyNoInteractions(auth);
   }
 }

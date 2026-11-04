@@ -122,6 +122,7 @@ class OidcCallbackTest {
                     .thenReturn(Optional.of(new User()));
                 var mfa = context.getBean(MfaService.class);
                 when(mfa.isEnabled()).thenReturn(true);
+                when(mfa.sendOtp("alice@example.test")).thenReturn("a".repeat(64));
                 var mvc =
                     MockMvcBuilders.webAppContextSetup(context)
                         .addFilter(
@@ -155,6 +156,7 @@ class OidcCallbackTest {
                 String redirect = callback.getResponse().getRedirectedUrl();
                 if (verified) {
                   assertTrue(redirect.contains("oidcEmail=alice%40example.test"), redirect);
+                  assertTrue(redirect.contains("&challenge=" + "a".repeat(64)), redirect);
                   verify(mfa).sendOtp("alice@example.test");
                 } else {
                   assertTrue(redirect.contains("oidcError=email_not_verified"), redirect);
