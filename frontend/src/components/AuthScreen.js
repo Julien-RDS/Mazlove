@@ -24,6 +24,22 @@ export default function AuthScreen({ query, onAuthenticated }) {
   const [oidc, setOidc] = useState({ enabled: false, provider: "SSO" });
   const oidcHandled = useRef(false);
 
+  useEffect(() => {
+    if (!query.oidcEmail && !query.challenge) return;
+    // Les données du retour SSO sont déjà capturées dans credentials.
+    const params = new URLSearchParams(
+      window.location.hash.split("?")[1] || "",
+    );
+    params.delete("oidcEmail");
+    params.delete("challenge");
+    const suffix = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `#/connexion${suffix ? `?${suffix}` : ""}`,
+    );
+  }, [query.oidcEmail, query.challenge]);
+
   const goToCode = (email, password, message, challenge) => {
     setCredentials({ email, password, challenge });
     setInfo(message);

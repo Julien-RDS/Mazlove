@@ -80,6 +80,12 @@ for (const viaSso of [false, true]) {
         ? "/#/connexion?oidcEmail=alice%40example.test&challenge=" + challenge
         : "/#/connexion",
     );
+    if (viaSso) {
+      await expect(page).toHaveURL(/\/#\/connexion$/);
+      await expect(page.getByLabel("Code à 6 chiffres")).toBeVisible();
+      expect(page.url()).not.toContain(challenge);
+      expect(page.url()).not.toContain("oidcEmail");
+    }
     if (!viaSso) {
       await page
         .getByLabel("Email", { exact: true })
