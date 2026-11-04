@@ -2,30 +2,41 @@ import React, { useState, useEffect } from "react";
 import { trackingApi as api } from "../../lib/trackingApi";
 import TrackingMap from "./LazyTrackingMap";
 import TripStatusStepper from "./TripStatusStepper";
+import { startVisiblePolling } from "../../lib/visiblePolling";
 export default function PublicTripPage({ token }) {
   const [data, set] = useState(null),
     [error, E] = useState("");
   useEffect(() => {
     let active = true;
-    const load = () =>
-      api(`/public/trips/${encodeURIComponent(token)}`)
-        .then((r) => {
-          if (active) {
-            set(r);
-            E("");
-          }
-        })
-        .catch((e) => {
+    set(null);
+    E("");
+    const poll = startVisiblePolling(
+      async (signal) => {
+        const result = await api(
+          `/public/trips/${encodeURIComponent(token)}`,
+          null,
+          "GET",
+          undefined,
+          { signal },
+        );
+        if (active && !signal.aborted) {
+          set(result);
+          E("");
+        }
+      },
+      5000,
+      {
+        onError: (e) => {
           if (active) {
             set(null);
             E(e.message);
           }
-        });
-    load();
-    const t = setInterval(load, 5000);
+        },
+      },
+    );
     return () => {
       active = false;
-      clearInterval(t);
+      poll.stop();
     };
   }, [token]);
   return (

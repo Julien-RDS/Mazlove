@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   testMatch: [
+    "publicTrip.spec.js",
     "frontpage.spec.js",
     "providerJourney.spec.js",
     "theme.spec.js",
