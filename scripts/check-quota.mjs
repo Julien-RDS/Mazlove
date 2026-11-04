@@ -44,7 +44,7 @@ const oddNote = (odd) => (odd.length ? ` Réponses inattendues : ${[...new Set(o
 
 export async function checkFixed(base, from) {
   const { first429, odd } = await series(base, () => ({}), from);
-  if (odd.length === TOTAL) return { ok: false, text: `Aucune réponse exploitable.${oddNote(odd)}` };
+  if (odd.length) return { ok: false, text: `Mesure non concluante.${oddNote(odd)}` };
   if (first429 === LIMIT + 1) return { ok: true, text: `OK : 429 dès la ${first429}ᵉ requête (limite ${LIMIT}).${oddNote(odd)}` };
   if (first429 === 0) return { ok: false, text: `ÉCHEC : aucun 429 en ${TOTAL} requêtes. Quota inactif ou compteur contourné.${oddNote(odd)}` };
   if (first429 <= LIMIT)
@@ -54,6 +54,7 @@ export async function checkFixed(base, from) {
 
 export async function checkSpoof(base, from) {
   const { first429, odd } = await series(base, (i) => ({ 'X-Forwarded-For': `203.0.113.${(i % 250) + 1}` }), from);
+  if (odd.length) return { ok: false, text: `Mesure non concluante.${oddNote(odd)}` };
   if (first429 === 0)
     return { ok: false, text: `CONTOURNABLE : ${TOTAL} requêtes à adresses X-Forwarded-For différentes, aucun 429. Le quota suit l'en-tête fourni par le client : ne PAS faire confiance à ce proxy tel quel.${oddNote(odd)}` };
   return { ok: true, text: `OK : l'en-tête X-Forwarded-For fourni par le client ne change pas le compteur (429 à la ${first429}ᵉ). Ne prouve PAS que le backend voit la vraie adresse : voir --probe.${oddNote(odd)}` };
@@ -76,7 +77,7 @@ async function selftest() {
         const key = mode === 'partagé' ? 'proxy' : mode === 'contournable' ? req.headers['x-forwarded-for'] || req.socket.remoteAddress : req.socket.remoteAddress;
         const n = (counts.get(key) || 0) + 1;
         counts.set(key, n);
-        res.statusCode = n > 30 ? 429 : 404; // seuil réel du backend (TripSafetyService), volontairement indépendant de LIMIT
+        res.statusCode = mode === 'inattendu' && n === 2 ? 500 : n > 30 ? 429 : 404; // seuil réel du backend, indépendant de LIMIT
         res.end('{}');
       });
       srv.listen(0, '127.0.0.1', () => resolve({ base: `http://127.0.0.1:${srv.address().port}`, close: () => srv.close() }));
@@ -95,6 +96,11 @@ async function selftest() {
     s.close();
   }
   { const s = await start('bon'); await series(s.base, () => ({}), '127.0.0.1'); expect('bon / même adresse après épuisement', (await probe(s.base, '127.0.0.1')).ok, false); s.close(); }
+  for (const [label, check] of [['adresse fixe', checkFixed], ['X-Forwarded-For', checkSpoof]]) {
+    const s = await start('inattendu');
+    expect(`réponse 500 au milieu de la mesure / ${label}`, (await check(s.base)).ok, false);
+    s.close();
+  }
   for (const c of cases) console.log(`${c.ok ? '✓' : '✗'} ${c.label}${c.ok ? '' : ` (obtenu ${c.got}, attendu ${c.want})`}`);
   const bad = cases.filter((c) => !c.ok).length;
   console.log(bad ? `\n${bad} cas en échec.` : `\nAuto-test réussi (${cases.length} cas) : la logique du script est cohérente avec les trois situations simulées.`);
@@ -110,6 +116,7 @@ async function main() {
   const from = opt('--from');
   if (args.includes('--probe')) { const r = await probe(base, from); console.log(r.text); process.exit(r.ok ? 0 : 1); }
   const only = opt('--test');
+  if (args.includes('--test') && !['fixed', 'spoof'].includes(only)) { console.error('--test exige fixed ou spoof.'); process.exit(2); }
   const plan = [['fixed', 'Quota à adresse fixe', checkFixed], ['spoof', 'X-Forwarded-For aléatoires', checkSpoof]].filter(([id]) => !only || id === only);
   let failed = false;
   for (const [i, [, label, fn]] of plan.entries()) {
