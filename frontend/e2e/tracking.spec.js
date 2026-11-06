@@ -10,19 +10,6 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
   request,
   baseURL,
 }) => {
-  const login = async (email) =>
-    (
-      await (
-        await request.post("/api/dev/login-as", { data: { email } })
-      ).json()
-    ).token;
-  const a = await login("alice@test.com"),
-    p = await login("sophie@test.com");
-  const headers = { Authorization: `Bearer ${p}` };
-  await request.post("/api/dev/reset-demo", { headers });
-  const { id } = await (
-    await request.get("/api/dev/demo-session", { headers })
-  ).json();
   const client = await browser.newContext(),
     provider = await browser.newContext({
       permissions: ["geolocation"],
@@ -32,16 +19,66 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
         accuracy: 5,
       },
     });
-  for (const [context, token] of [
-    [client, a],
-    [provider, p],
-  ])
-    await context.addInitScript(
-      (token) => localStorage.setItem("mazlove.token", token),
-      token,
-    );
   const cp = await client.newPage(),
     pp = await provider.newPage();
+  const login = async (email, page) => {
+    const mailhog = process.env.MAILHOG_URL || "http://127.0.0.1:8025";
+    const inbox = async () => {
+      const url = new URL("/api/v2/search", mailhog);
+      url.searchParams.set("kind", "to");
+      url.searchParams.set("query", email);
+      const result = await request.get(url.toString());
+      if (!result.ok()) throw new Error("MailHog indisponible");
+      return (await result.json()).items || [];
+    };
+    const previous = new Set((await inbox()).map((message) => message.ID));
+    await page.goto(`${baseURL}/#/connexion`);
+    await page.getByLabel("Email", { exact: true }).fill(email);
+    await page.getByLabel("Mot de passe", { exact: true }).fill("password123");
+    await page
+      .getByRole("button", { name: "Recevoir mon code de connexion" })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Votre code de connexion" }),
+    ).toBeVisible();
+    let code;
+    await expect
+      .poll(
+        async () => {
+          const message = (await inbox()).find(
+            (item) => !previous.has(item.ID),
+          );
+          const subject = message?.Content?.Headers?.Subject?.[0] || "";
+          code = subject.match(/\b\d{6}\b/)?.[0];
+          return !!code;
+        },
+        { timeout: 15000 },
+      )
+      .toBe(true);
+    const verifyRequest = page.waitForRequest(
+      (req) =>
+        req.url().includes("/api/auth/verify-otp") && req.method() === "POST",
+    );
+    await page.getByLabel("Code à 6 chiffres").fill(code);
+    const submission = (await verifyRequest).postDataJSON();
+    expect(typeof submission.challenge).toBe("string");
+    await expect
+      .poll(() => page.evaluate(() => !!localStorage.getItem("mazlove.token")))
+      .toBe(true);
+    await expect(page).toHaveURL(/\/#\/$/);
+    const token = await page.evaluate(() =>
+      localStorage.getItem("mazlove.token"),
+    );
+    expect(typeof token).toBe("string");
+    return token;
+  };
+  const a = await login("alice@test.com", cp),
+    p = await login("sophie@test.com", pp);
+  const headers = { Authorization: `Bearer ${p}` };
+  await request.post("/api/dev/reset-demo", { headers });
+  const { id } = await (
+    await request.get("/api/dev/demo-session", { headers })
+  ).json();
   await cp.goto(`${baseURL}/#/seances/${id}`);
   await pp.goto(`${baseURL}/#/seances/${id}`);
   await expect(
@@ -50,7 +87,12 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
   const consent = pp.getByRole("button", {
     name: "J’accepte le partage de ma position",
   });
-  if (await consent.isVisible()) await consent.click();
+  const consentStatus = await request.get("/api/consents", { headers });
+  expect(consentStatus.ok()).toBe(true);
+  if (!(await consentStatus.json()).granted) {
+    await expect(consent).toBeVisible();
+    await consent.click();
+  }
   await pp.getByRole("button", { name: "Je pars", exact: true }).click();
   await expect(cp.getByText("Statut : En route")).toBeVisible();
   const snapshot = async () =>
