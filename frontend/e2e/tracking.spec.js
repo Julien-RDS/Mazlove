@@ -10,6 +10,7 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
   request,
   baseURL,
 }) => {
+  test.setTimeout(300000);
   const client = await browser.newContext(),
     provider = await browser.newContext({
       permissions: ["geolocation"],
@@ -101,6 +102,46 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
     .poll(async () => (await snapshot()).pos?.etaSeconds, { timeout: 15000 })
     .toBeGreaterThan(0);
   const initialEta = (await snapshot()).pos.etaSeconds;
+  const aliceHeaders = { Authorization: `Bearer ${a}` };
+  const share = async () => {
+    const response = await request.post(`/api/sessions/${id}/share`, {
+      headers: aliceHeaders,
+    });
+    expect(response.ok()).toBe(true);
+    return new URL((await response.json()).url).pathname;
+  };
+  const publicContext = await browser.newContext();
+  await publicContext.route("https://tiles.openfreemap.org/**", (r) =>
+    r.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  );
+  const publicPage = await publicContext.newPage();
+  const revokedPath = await share();
+  await publicPage.goto(`${baseURL}${revokedPath}`);
+  await expect(publicPage.locator(".tracking-marker")).toBeVisible();
+  expect(
+    (await request.delete(`/api/sessions/${id}/share`, { headers: aliceHeaders })).ok(),
+  ).toBe(true);
+  await expect(publicPage.getByRole("alert")).toBeVisible({ timeout: 15000 });
+  await expect(publicPage.locator(".tracking-marker")).toHaveCount(0);
+  expect(
+    (await request.get(`/api/public/trips/${revokedPath.split("/").pop()}`)).status(),
+  ).toBe(404);
+  const publicPath = await share();
+  await publicPage.goto(`${baseURL}${publicPath}`);
+  await expect(publicPage.locator(".tracking-marker")).toBeVisible();
+  let throttled = false;
+  for (let i = 0; i < 31; i++) {
+    const response = await request.get(
+      `/api/public/trips/${publicPath.split("/").pop()}`,
+    );
+    if (response.status() === 429) throttled = true;
+  }
+  expect(throttled).toBe(true);
+  await expect(publicPage.getByRole("alert")).toContainText(
+    "Mise à jour retardée",
+    { timeout: 15000 },
+  );
+  await expect(publicPage.locator(".tracking-marker")).toBeVisible();
   await pp.evaluate(() => (location.hash = "/"));
   await expect(
     pp.getByRole("heading", { name: "Du départ au premier bonjour." }),
@@ -153,6 +194,13 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
   await expect(cp.getByText("Statut : Arrivé", { exact: true })).toBeVisible({
     timeout: 20000,
   });
+  await expect(publicPage.locator(".tracking-marker")).toHaveCount(0, {
+    timeout: 80000,
+  });
+  await expect(publicPage.getByRole("alert")).toBeVisible();
+  expect(
+    (await request.get(`/api/public/trips/${publicPath.split("/").pop()}`)).status(),
+  ).toBe(404);
   await pp.evaluate((id) => (location.hash = `/seances/${id}`), id);
   await pp.getByLabel("Code donné par le client").fill("123456");
   await pp.getByRole("button", { name: "Démarrer la séance" }).click();
@@ -168,4 +216,5 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
   expect(snap.route).toBeNull();
   await client.close();
   await provider.close();
+  await publicContext.close();
 });
