@@ -292,6 +292,70 @@ class TrackingReliabilityIT {
 
   @Test
   @EnabledIfEnvironmentVariable(named = "MAZLOVE_MAIL_IT", matches = "true")
+  void completionEmailsReachBothParticipantsInMailHog() {
+    String base = System.getenv().getOrDefault("MAILHOG_URL", "http://localhost:8025");
+    var client = new org.springframework.web.client.RestTemplate();
+    Map<String, Integer> before = new HashMap<>();
+    for (String recipient : List.of("alice@test.com", "sophie@test.com")) {
+      var inbox =
+          client.getForObject(base + "/api/v2/search?kind=to&query=" + recipient, Map.class);
+      before.put(recipient, ((Number) inbox.get("total")).intValue());
+    }
+    post("/api/sessions/" + id + "/arrived", "sophie@test.com", null);
+    post("/api/sessions/" + id + "/validate-arrival", "sophie@test.com", Map.of("code", "123456"));
+    post("/api/sessions/" + id + "/confirm-end", "sophie@test.com", null);
+    for (String recipient : before.keySet()) {
+      var inbox =
+          client.getForObject(base + "/api/v2/search?kind=to&query=" + recipient, Map.class);
+      assertEquals(before.get(recipient) + 1, ((Number) inbox.get("total")).intValue());
+      verify(mail, times(1))
+          .sendText(eq(recipient), eq("Votre séance Mazlove est terminée"), anyString());
+    }
+  }
+
+  @Test
+  @EnabledIfEnvironmentVariable(named = "MAZLOVE_MAIL_STOP_IT", matches = "true")
+  void realSmtpOutageMarksOnlyTheAffectedParticipant() throws Exception {
+    assertEquals("mazlove-e2e-mailhog", System.getenv("MAZLOVE_DISPOSABLE_MAILHOG"));
+    doAnswer(
+            invocation -> {
+              invocation.callRealMethod();
+              Process stop =
+                  new ProcessBuilder("docker", "stop", "mazlove-e2e-mailhog")
+                      .redirectErrorStream(true)
+                      .start();
+              assertTrue(stop.waitFor(15, TimeUnit.SECONDS));
+              assertEquals(0, stop.exitValue());
+              return null;
+            })
+        .when(mail)
+        .sendText(eq("alice@test.com"), anyString(), anyString());
+    post("/api/sessions/" + id + "/arrived", "sophie@test.com", null);
+    post("/api/sessions/" + id + "/validate-arrival", "sophie@test.com", Map.of("code", "123456"));
+    post("/api/sessions/" + id + "/confirm-end", "sophie@test.com", null);
+    assertEquals(
+        Boolean.FALSE,
+        request("/api/sessions/" + id, HttpMethod.GET, "alice@test.com", null)
+            .getBody()
+            .get("emailUnconfirmed"));
+    assertEquals(
+        Boolean.TRUE,
+        request("/api/sessions/" + id, HttpMethod.GET, "sophie@test.com", null)
+            .getBody()
+            .get("emailUnconfirmed"));
+    verify(mail, times(1)).sendText(eq("alice@test.com"), anyString(), anyString());
+    verify(mail, times(1)).sendText(eq("sophie@test.com"), anyString(), anyString());
+    String browserDone = System.getenv("MAZLOVE_MAIL_BROWSER_DONE");
+    if (browserDone != null) {
+      long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
+      while (!Files.exists(Path.of(browserDone)) && System.nanoTime() < deadline)
+        Thread.sleep(100);
+      assertTrue(Files.exists(Path.of(browserDone)), "Le contrôle navigateur n'a pas terminé");
+    }
+  }
+
+  @Test
+  @EnabledIfEnvironmentVariable(named = "MAZLOVE_MAIL_IT", matches = "true")
   void emailIsReceivedInMailHogAndAdminCanReadAlerts() {
     post(
         "/api/users/me/trusted-contacts",

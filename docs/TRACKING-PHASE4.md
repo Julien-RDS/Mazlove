@@ -77,6 +77,22 @@ cd ../frontend
 BASE_URL=http://localhost:3000 npm run test:e2e
 ```
 
+Le cas de panne SMTP réelle est séparé, car il arrête le conteneur jetable nommé
+`mazlove-e2e-mailhog`. Ne l'utiliser qu'avec une base, Redis et ce conteneur dédiés aux tests.
+Le backend et le frontend doivent partager cette base. Dans deux terminaux, après avoir fourni
+les paramètres locaux de PostgreSQL, Redis, SMTP et JWT :
+
+1. Créer un répertoire de synchronisation vide, puis exporter `MAZLOVE_MAIL_STOP_IT=true`,
+   `MAZLOVE_MAIL_BROWSER_READY` et `MAZLOVE_MAIL_BROWSER_DONE` vers deux fichiers inexistants
+   de ce répertoire. Fournir aussi `MAILHOG_URL` et `BASE_URL`. Dans `frontend`, lancer
+   `npx playwright test --config=playwright.mail.config.js`.
+2. Quand le fichier `MAZLOVE_MAIL_BROWSER_READY` apparaît, exporter les mêmes variables dans
+   l'autre terminal, avec `MAZLOVE_STOMP_IT=true` et
+   `MAZLOVE_DISPOSABLE_MAILHOG=mazlove-e2e-mailhog`. Dans `backend`, lancer
+   `mvn '-Dtest=TrackingReliabilityIT#realSmtpOutageMarksOnlyTheAffectedParticipant' test`.
+   Le test livre le premier email, arrête ce conteneur précis, puis vérifie l'échec du second
+   et attend le contrôle navigateur. Redémarrer le MailHog jetable si d'autres tests suivent.
+
 Les tests HTTP/STOMP ouvrent leur propre port applicatif éphémère, sans démarrer de base ni de conteneur. Le parcours navigateur réel attend les applications existantes. Pour ce dernier, utiliser uniquement l’environnement de test avec les comptes fictifs, le profil dev et le seed ; ces réglages ne doivent jamais être copiés en production.
 
 ## Limites restantes
