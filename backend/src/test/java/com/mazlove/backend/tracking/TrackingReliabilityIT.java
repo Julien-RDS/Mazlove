@@ -105,6 +105,43 @@ class TrackingReliabilityIT {
     return new PositionDTO(c[1], c[0], accuracy, null, 0., ts, seq);
   }
 
+  @Test
+  void failedCompletionEmailPersistsOnlyForTheAffectedParticipant() {
+    db.update(
+        "UPDATE sessions SET"
+            + " status='DONE',client_email_unconfirmed=false,provider_email_unconfirmed=false WHERE"
+            + " id=?",
+        id);
+    doNothing().when(mail).sendText(anyString(), anyString(), anyString());
+    doThrow(new org.springframework.mail.MailSendException("test"))
+        .when(mail)
+        .sendText(eq("alice@test.com"), anyString(), anyString());
+    jobs.changed(new SessionLifecycle.Changed(id, "DONE", "Séance terminée"));
+    assertEquals(
+        Boolean.TRUE,
+        db.queryForObject(
+            "SELECT client_email_unconfirmed FROM sessions WHERE id=?", Boolean.class, id));
+    assertEquals(
+        Boolean.FALSE,
+        db.queryForObject(
+            "SELECT provider_email_unconfirmed FROM sessions WHERE id=?", Boolean.class, id));
+    assertEquals(
+        Boolean.TRUE,
+        request("/api/sessions/" + id, HttpMethod.GET, "alice@test.com", null)
+            .getBody()
+            .get("emailUnconfirmed"));
+    assertEquals(
+        Boolean.FALSE,
+        request("/api/sessions/" + id, HttpMethod.GET, "sophie@test.com", null)
+            .getBody()
+            .get("emailUnconfirmed"));
+    post("/api/dev/reset-demo", "sophie@test.com", null);
+    assertEquals(
+        Boolean.FALSE,
+        db.queryForObject(
+            "SELECT client_email_unconfirmed FROM sessions WHERE id=?", Boolean.class, id));
+  }
+
   void ingest(PositionDTO p) {
     redis.delete("track:rate:" + id);
     tracking.ingest("sophie@test.com", id, p);

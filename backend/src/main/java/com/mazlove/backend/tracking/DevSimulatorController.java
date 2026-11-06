@@ -71,8 +71,8 @@ public class DevSimulatorController {
     db.update(
         "UPDATE sessions SET"
             + " version=version+1,status='ACCEPTED',datetime=CURRENT_TIMESTAMP+INTERVAL '1"
-            + " day',travel_mode=NULL,en_route_at=NULL,arrived_at=NULL,started_at=NULL,ended_at=NULL"
-            + " WHERE id=?",
+            + " day',travel_mode=NULL,en_route_at=NULL,arrived_at=NULL,started_at=NULL,ended_at=NULL,"
+            + "client_email_unconfirmed=false,provider_email_unconfirmed=false WHERE id=?",
         id);
     db.update("DELETE FROM tracking_events WHERE session_id=?", id);
     db.update("DELETE FROM trip_shares WHERE session_id=?", id);

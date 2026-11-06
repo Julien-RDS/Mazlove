@@ -64,7 +64,7 @@ psql -v ON_ERROR_STOP=1 -f backend/src/main/resources/sql/migrations/004-trackin
 psql -v ON_ERROR_STOP=1 -f backend/src/main/resources/sql/migrations/005-session-email-status.sql
 ```
 
-Cette migration transactionnelle et rejouable ajoute les index de sélection et la file d’emails SOS ; elle ne transforme pas les séances existantes. Les index classiques peuvent prendre des verrous : les créer pendant la maintenance. L’index unique `uq_provider_en_route` de phase 3 reste la garantie d’un seul trajet actif par prestataire.
+La migration `004` ajoute les index de sélection et la file d’emails SOS ; `005` ajoute les indicateurs de confirmation email. Les deux sont transactionnelles et rejouables. Les index classiques peuvent prendre des verrous : les créer pendant la maintenance. L’index unique `uq_provider_en_route` de phase 3 reste la garantie d’un seul trajet actif par prestataire.
 
 Pour une base antérieure à la phase 3 ou neuve, appliquer d’abord `backend/src/main/resources/sql/schema.sql` avec `ON_ERROR_STOP=1`, application arrêtée, après sauvegarde. Ne pas appliquer les seeds. Ce schéma convertit **une seule fois**, lorsque la colonne `started_at` n’existe pas, les anciens `ACCEPTED` en `IN_PROGRESS`. Vérifier cette hypothèse sur les anciennes données avant application ; ne pas supprimer cette colonne pour rejouer la migration. Contrôler les éventuels doublons EN_ROUTE avant création de l’index unique. Le schéma complet inclut déjà les ajouts de phase 4.
 

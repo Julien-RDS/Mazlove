@@ -1,5 +1,42 @@
 import { test, expect } from "@playwright/test";
 
+test("panne réseau : la dernière position reste affichée pendant des délais croissants", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.route("https://tiles.openfreemap.org/**", (r) =>
+    r.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  );
+  let calls = 0;
+  await page.route("**/api/public/trips/**", (r) => {
+    calls++;
+    if (calls === 2 || calls === 3) return r.abort("failed");
+    return r.fulfill({
+      json: {
+        providerName: "Sophie",
+        status: "EN_ROUTE",
+        pos: { lat: 48.86, lng: 2.34, ts: Date.now() },
+      },
+    });
+  });
+  await page.goto("/t/test-token");
+  await expect(page.getByRole("heading", { name: "Sophie" })).toBeVisible();
+  await page.clock.runFor(100);
+  await expect(page.locator(".tracking-marker")).toBeVisible();
+  await page.clock.runFor(5000);
+  await expect(page.getByRole("alert")).toContainText("Mise à jour retardée");
+  await expect(page.locator(".tracking-marker")).toBeVisible();
+  await page.clock.runFor(9000);
+  expect(calls).toBe(2);
+  await page.clock.runFor(1000);
+  await expect.poll(() => calls).toBe(3);
+  await page.clock.runFor(19000);
+  expect(calls).toBe(3);
+  await page.clock.runFor(1000);
+  await expect.poll(() => calls).toBe(4);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
 test("quota : conserve la position et respecte Retry-After avant reprise", async ({
   page,
 }) => {
@@ -20,7 +57,7 @@ test("quota : conserve la position et respecte Retry-After avant reprise", async
       json: {
         providerName: calls === 1 ? "Sophie" : "Sophie actualisée",
         status: "EN_ROUTE",
-        pos: null,
+        pos: { lat: 48.86, lng: 2.34, ts: Date.now() },
       },
     });
   });
@@ -28,11 +65,14 @@ test("quota : conserve la position et respecte Retry-After avant reprise", async
   await expect(
     page.getByRole("heading", { name: "Sophie", exact: true }),
   ).toBeVisible();
+  await page.clock.runFor(100);
+  await expect(page.locator(".tracking-marker")).toBeVisible();
   await page.clock.runFor(5000);
   await expect(page.getByRole("alert")).toContainText("Mise à jour retardée");
   await expect(
     page.getByRole("heading", { name: "Sophie", exact: true }),
   ).toBeVisible();
+  await expect(page.locator(".tracking-marker")).toBeVisible();
   await page.clock.runFor(19000);
   expect(calls).toBe(2);
   await page.clock.runFor(1000);
@@ -59,7 +99,11 @@ test("lien partagé : aucune requête simultanée et effacement après révocati
     if (requests === 1) {
       await waiting;
       return route.fulfill({
-        json: { providerName: "Sophie", status: "EN_ROUTE", pos: null },
+        json: {
+          providerName: "Sophie",
+          status: "EN_ROUTE",
+          pos: { lat: 48.86, lng: 2.34, ts: Date.now() },
+        },
       });
     }
     return route.fulfill({
@@ -73,7 +117,10 @@ test("lien partagé : aucune requête simultanée et effacement après révocati
   expect(requests).toBe(1);
   release();
   await expect(page.getByRole("heading", { name: "Sophie" })).toBeVisible();
+  await page.clock.runFor(100);
+  await expect(page.locator(".tracking-marker")).toBeVisible();
   await page.clock.runFor(5000);
   await expect(page.getByRole("alert")).toHaveText("Lien expiré ou révoqué.");
   await expect(page.getByRole("heading", { name: "Sophie" })).toHaveCount(0);
+  await expect(page.locator(".tracking-marker")).toHaveCount(0);
 });

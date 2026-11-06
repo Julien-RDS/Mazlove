@@ -44,6 +44,9 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
     pp = await provider.newPage();
   await cp.goto(`${baseURL}/#/seances/${id}`);
   await pp.goto(`${baseURL}/#/seances/${id}`);
+  await expect(
+    pp.getByRole("heading", { name: "Console prestataire" }),
+  ).toBeVisible();
   const consent = pp.getByRole("button", {
     name: "J’accepte le partage de ma position",
   });
