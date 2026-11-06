@@ -1,0 +1,81 @@
+import { test, expect } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+
+test("SOS depuis l’interface avec MailHog et résolution administrateur", async ({ browser, request, baseURL }) => {
+  test.skip(process.env.MAZLOVE_SOS_IT !== "true", "Réservé aux services jetables");
+  test.setTimeout(90000);
+  const mailhog = process.env.MAILHOG_URL || "http://127.0.0.1:8025";
+  const inbox = async (email) => {
+    const url = new URL("/api/v2/search", mailhog);
+    url.searchParams.set("kind", "to");
+    url.searchParams.set("query", email);
+    const response = await request.get(url.toString());
+    expect(response.ok()).toBe(true);
+    return (await response.json()).items || [];
+  };
+  const login = async (email) => {
+    const previous = new Set((await inbox(email)).map((item) => item.ID));
+    const response = await request.post("/api/auth/login", { data: { email, password: "password123" } });
+    expect(response.ok()).toBe(true);
+    const { challenge } = await response.json();
+    let code;
+    await expect.poll(async () => {
+      const message = (await inbox(email)).find((item) => !previous.has(item.ID));
+      code = message?.Content?.Headers?.Subject?.[0]?.match(/\b\d{6}\b/)?.[0];
+      return !!code;
+    }).toBe(true);
+    const verified = await request.post("/api/auth/verify-otp", { data: { email, code, challenge } });
+    expect(verified.ok()).toBe(true);
+    return (await verified.json()).token;
+  };
+  const alice = await login("alice@test.com");
+  const sophie = await login("sophie@test.com");
+  const admin = await login("admin-e2e@example.test");
+  const headers = (token) => ({ Authorization: `Bearer ${token}` });
+  const fixture = await request.post("/api/dev/reset-demo", { headers: headers(sophie) });
+  expect(fixture.ok()).toBe(true);
+  const { id } = await fixture.json();
+  const contacts = await request.get("/api/users/me/trusted-contacts", { headers: headers(alice) });
+  expect(contacts.ok()).toBe(true);
+  for (const existing of await contacts.json())
+    expect((await request.delete(`/api/users/me/trusted-contacts/${existing.id}`, { headers: headers(alice) })).ok()).toBe(true);
+  const contact = `sos-${randomUUID()}@example.test`;
+  expect((await request.post("/api/users/me/trusted-contacts", { headers: headers(alice), data: { name: "Contact test", email: contact } })).ok()).toBe(true);
+  expect((await request.post("/api/consents", { headers: headers(sophie) })).ok()).toBe(true);
+  const coordinates = JSON.parse(fs.readFileSync(new URL("../../scripts/routes/chatelet.geojson", import.meta.url))).geometry.coordinates[0];
+  expect((await request.post(`/api/sessions/${id}/depart`, { headers: headers(sophie), data: { travelMode: "DRIVING", lat: coordinates[1], lng: coordinates[0] } })).ok()).toBe(true);
+  const client = await browser.newContext();
+  await client.addInitScript((token) => localStorage.setItem("mazlove.token", token), alice);
+  const page = await client.newPage();
+  await page.goto(`${baseURL}/#/seances/${id}`);
+  const trigger = page.getByRole("button", { name: "SOS — maintenir 1,5 seconde" });
+  const send = async () => {
+    await trigger.focus();
+    await page.keyboard.down("Enter");
+    await page.waitForTimeout(1700);
+    await page.keyboard.up("Enter");
+    const response = page.waitForResponse((r) => r.url().endsWith(`/api/sessions/${id}/sos`) && r.request().method() === "POST");
+    await page.getByRole("button", { name: "Confirmer l’alerte SOS" }).click();
+    const result = await response;
+    expect(result.ok()).toBe(true);
+    return result.json();
+  };
+  const first = await send();
+  await expect.poll(async () => (await inbox(contact)).length, { timeout: 20000 }).toBe(1);
+  await expect(page.getByRole("status").filter({ hasText: "Emails envoyés" })).toContainText("Emails envoyés : 1, en attente : 0, échecs : 0", { timeout: 20000 });
+  const second = await send();
+  expect(second.alertId).toBe(first.alertId);
+  await page.waitForTimeout(5500);
+  expect((await inbox(contact)).length).toBe(1);
+  const adminContext = await browser.newContext();
+  await adminContext.addInitScript((token) => localStorage.setItem("mazlove.token", token), admin);
+  const adminPage = await adminContext.newPage();
+  await adminPage.goto(`${baseURL}/admin/sos`);
+  const row = adminPage.locator("article").filter({ hasText: `séance ${id}` });
+  await expect(row).toHaveCount(1);
+  await row.getByRole("button", { name: "Résolu" }).click();
+  await expect(row).toHaveCount(0);
+  await client.close();
+  await adminContext.close();
+});

@@ -45,26 +45,17 @@ Après un échec certain avant acceptation (connexion refusée, hôte introuvabl
 
 SMTP ne permet pas de garantir « exactement une fois » en cas de crash ou de réponse perdue après acceptation. Ces cas demandent une vérification humaine. Un email déjà en cours d’envoi ne peut pas être rappelé par une suppression de compte. Aucun appel ni SMS aux secours n’est effectué ; 17/112 restent explicitement indiqués.
 
-## Vérifications exécutées
+## Vérifications réelles (6 novembre 2026, commit 3a7848b)
 
-- `mvn test` : **70 comptabilisés, 66 exécutés et réussis, 4 tests d’intégration préexistants désactivés**, zéro échec/erreur. Compilation des nouvelles classes IT comprise.
-- `npm test` : **21 tests Vitest réussis**.
-- `npm run test:frontpage` avec Chromium système : **12 tests réussis**, API/STOMP/tuiles simulés. Ils couvrent l’accueil, le chargement différé, le départ avec géolocalisation émulée, la continuité console→accueil→console, le rechargement, le nettoyage à l’arrivée/annulation/expiration, le relais entre onglets, la déconnexion pendant une requête, le changement de compte l’isolation de la démo et le rejet d’une réponse de trajet retardée après l’arrivée.
-- `VITE_DEMO=false npm run build` : réussi, aucun module `DemoSplitScreen` dans le résultat. Entrée JavaScript **233,06 kB / 74,34 kB gzip**, contre environ 221 / 70 kB au bilan précédent ; la gestion globale ajoute donc environ 12 kB bruts. MapLibre reste différé : **806,47 kB / 219,65 kB gzip**. L’avertissement Vite >500 kB concerne ce moteur. Aucun score Lighthouse annoncé.
-- `git diff --check` : sans erreur.
+Sur une base PostgreSQL et un Redis jetables, avec MailHog et comptes fictifs :
 
-Les dépendances frontend ont été utilisées dans une copie de travail dédiée, pour ne pas modifier les anciens `node_modules` suivis dans le dépôt. Maven a utilisé Java 17. Les artefacts générés ne font pas partie du commit.
+- Vitest : 51 réussis ; scénarios navigateur simulés : 35 réussis ; build de production réussi.
+- Intégration réelle : 14 tests comptabilisés, 13 réussis et 1 ignoré (panne SMTP), puis ce dernier réussi séparément. Cela comprend 3 cas `ActiveSessionIT`, 2 `StompSecurityIT` et 9 `TrackingReliabilityIT`.
+- Parcours navigateur réel réussi : connexion par mot de passe et OTP MailHog avec défi, GPS émulé, partage public, 429 réel, révocation, arrivée et fin. Les tuiles cartographiques étaient simulées.
+- Panne SMTP réelle : réception de l'email de fin et du SOS dans MailHog ; indicateur affiché uniquement au destinataire concerné après arrêt de MailHog entre les deux envois.
+- Le parcours et le contrôle de panne SMTP ont aussi réussi via le Nginx fourni ; en-têtes et connexions STOMP contrôlés. Ce test ne valide pas la confiance proxy de l'environnement réel.
 
-## Vérifications non exécutées avec services
-
-PostgreSQL, Redis, API et SMTP/MailHog locaux étaient inaccessibles. Les **11 tests IT** ont été sélectionnés explicitement sans variable d’activation : tous désactivés, aucun parcours réel exécuté. Le parcours Playwright réel n’a pas été lancé. Aucun test de configuration Nginx sur un serveur n’a été effectué.
-
-Les suites fournies :
-
-- `ActiveSessionIT` (3 cas) : >50 réservations, deux rôles, utilisateur tiers, priorité et exclusions. Lignes dédiées et rollback PostgreSQL.
-- `StompSecurityIT` (2 cas) : CONNECT sans jeton, tiers, client émetteur refusé, réception autorisée, nettoyage et absence de nouveaux messages après arrêt, expiration pendant la connexion. Routage local déterministe.
-- `TrackingReliabilityIT` (6 cas) : itinéraire GeoJSON versionné, filtres/précision/désordre/point aberrant, ETA, TTL, signal perdu/récupéré, arrivée sur deux pings, course GPS/arrivée, liens expirés/révoqués/quota, SOS durable et dédupliqué après refus SMTP, email dans MailHog et ADMIN, rendez-vous figé et unicité EN_ROUTE. Le cas MailHog demande un opt-in supplémentaire.
-- `frontend/e2e/tracking.spec.js` : consentement, départ, navigation vers l’accueil, ETA décroissante, coupure/reconnexion, deux pings, code, séance et fin. PostgreSQL/Redis/backend/frontend requis. Les tests autonomes ne sont pas inclus dans cette commande.
+Ces résultats concernent le commit et l'environnement indiqués ; ils ne prouvent pas un déploiement réel. Les tests OTP exigent MailHog ; une relance dans les 30 secondes peut être refusée par le délai d'envoi.
 
 À lancer uniquement sur une base jetable dédiée avec le seed fictif ; ces IT remettent la séance de démonstration à zéro et manipulent des alertes de test. Fournir les paramètres PostgreSQL/Redis/JWT via l’environnement sans les mettre dans les commandes ni les logs :
 
@@ -74,7 +65,7 @@ MAZLOVE_STOMP_IT=true mvn -Dtest=StompSecurityIT,ActiveSessionIT,TrackingReliabi
 # Ajouter le cas de réception SMTP lorsque MailHog est déjà accessible :
 MAZLOVE_STOMP_IT=true MAZLOVE_MAIL_IT=true MAILHOG_URL=http://localhost:8025 mvn -Dtest=TrackingReliabilityIT test
 cd ../frontend
-BASE_URL=http://localhost:3000 npm run test:e2e
+BASE_URL=http://localhost:3000 MAILHOG_URL=http://localhost:8025 npm run test:e2e
 ```
 
 Le cas de panne SMTP réelle est séparé, car il arrête le conteneur jetable nommé
@@ -87,7 +78,7 @@ les paramètres locaux de PostgreSQL, Redis, SMTP et JWT :
    de ce répertoire. Fournir aussi `MAILHOG_URL` et `BASE_URL`. Dans `frontend`, lancer
    `npx playwright test --config=playwright.mail.config.js`.
 2. Quand le fichier `MAZLOVE_MAIL_BROWSER_READY` apparaît, exporter les mêmes variables dans
-   l'autre terminal, avec `MAZLOVE_STOMP_IT=true` et
+   l'autre terminal, avec `MAZLOVE_STOMP_IT=true`, sans définir `MAZLOVE_MAIL_IT`, et
    `MAZLOVE_DISPOSABLE_MAILHOG=mazlove-e2e-mailhog`. Dans `backend`, lancer
    `mvn '-Dtest=TrackingReliabilityIT#realSmtpOutageMarksOnlyTheAffectedParticipant' test`.
    Le test livre le premier email, arrête ce conteneur précis, puis vérifie l'échec du second
@@ -99,10 +90,26 @@ autorisée côté backend. Lancer le parcours `tracking.spec.js` avec `BASE_URL`
 Nginx et `MAZLOVE_TEST_NGINX=true` : il vérifie les en-têtes, le cache, le 404 des assets et
 une connexion STOMP reçue par chacun des deux navigateurs, en plus du parcours complet.
 
+Le scénario SOS interface exige le seed et un administrateur fictif
+`admin-e2e@example.test` avec le même mot de passe fictif que le compte Alice du seed.
+Il efface les contacts d'Alice et réinitialise la séance : l'exécuter exclusivement sur une
+base jetable. Après chargement du seed, créer l'administrateur dans cette base :
+
+```sql
+INSERT INTO users(email,name,password,phone,role)
+SELECT 'admin-e2e@example.test','Admin Test',password,'0000000000','ADMIN'
+FROM users WHERE email='alice@test.com' ON CONFLICT(email) DO NOTHING;
+```
+
+Avec le backend, le frontend et MailHog démarrés, lancer depuis `frontend` :
+`MAZLOVE_SOS_IT=true BASE_URL=http://localhost:3000 MAILHOG_URL=http://localhost:8025 npx playwright test --config=playwright.sos.config.js`.
+L'alerte est envoyée par email aux contacts de confiance ; l'administrateur la consulte et la
+résout dans l'interface, sans email administrateur prévu par le code actuel.
+
 Les tests HTTP/STOMP ouvrent leur propre port applicatif éphémère, sans démarrer de base ni de conteneur. Le parcours navigateur réel attend les applications existantes. Pour ce dernier, utiliser uniquement l’environnement de test avec les comptes fictifs, le profil dev et le seed ; ces réglages ne doivent jamais être copiés en production.
 
 ## Limites restantes
 
 Le navigateur ne garantit ni GPS ni Wake Lock en arrière-plan ou écran verrouillé ; HTTPS et les permissions restent requis. Le verrou est limité aux onglets d’une même origine et d’un même navigateur, pas aux appareils distincts. En cas de coupure réseau, l’arrêt serveur bloque l’ingestion et l’affichage ; l’interface se recale à la reconnexion ou au prochain snapshot. Les changements Redis ne participent pas à la transaction PostgreSQL : l’état SQL bloque les lectures après arrêt et les TTL bornent les résidus éventuels après incident.
 
-Le broker simple et les connexions en mémoire visent une instance. Les services publics de routage/tuiles restent sans SLA. Il reste à exécuter les suites réelles, compléter la validation de détour durable et des courses d’annulation, puis vérifier les mobiles, le proxy HTTPS/adresse réelle, la migration et le rollback sur une copie de données. Le code et les tests livrés ne constituent pas une validation de production.
+Le broker simple et les connexions en mémoire visent une instance. Les services publics de routage/tuiles restent sans SLA. Il reste à compléter la validation de détour durable et des courses d’annulation, puis vérifier les mobiles, le proxy HTTPS/adresse réelle, la migration et le rollback sur une copie de données. Le code et les tests livrés ne constituent pas une validation de production.
