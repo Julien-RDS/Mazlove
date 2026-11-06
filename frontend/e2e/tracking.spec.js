@@ -39,7 +39,8 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
     expect(shared.headers()["referrer-policy"]).toBe("no-referrer");
     for (const page of [cp, pp]) {
       page.on("websocket", (socket) => {
-        if (!new URL(socket.url()).pathname.startsWith("/ws")) return;
+        const url = new URL(socket.url());
+        if (url.host !== new URL(baseURL).host || !url.pathname.startsWith("/ws")) return;
         socket.on("framereceived", (frame) => {
           if (String(frame.payload).includes("CONNECTED\n")) connectedPages.add(page);
         });

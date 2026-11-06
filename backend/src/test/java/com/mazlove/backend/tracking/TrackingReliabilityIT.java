@@ -316,6 +316,7 @@ class TrackingReliabilityIT {
   @Test
   @EnabledIfEnvironmentVariable(named = "MAZLOVE_MAIL_STOP_IT", matches = "true")
   void realSmtpOutageMarksOnlyTheAffectedParticipant() throws Exception {
+    assertNull(System.getenv("MAZLOVE_MAIL_IT"), "Exécuter ce test séparément des tests MailHog");
     assertEquals("mazlove-e2e-mailhog", System.getenv("MAZLOVE_DISPOSABLE_MAILHOG"));
     doAnswer(
             invocation -> {
@@ -352,6 +353,8 @@ class TrackingReliabilityIT {
         Thread.sleep(100);
       assertTrue(Files.exists(Path.of(browserDone)), "Le contrôle navigateur n'a pas terminé");
     }
+    verify(mail, times(1)).sendText(eq("alice@test.com"), anyString(), anyString());
+    verify(mail, times(1)).sendText(eq("sophie@test.com"), anyString(), anyString());
   }
 
   @Test

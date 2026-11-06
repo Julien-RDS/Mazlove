@@ -41,6 +41,11 @@ test("un échec SMTP réel reste visible uniquement pour le destinataire concern
   const fixture = await request.get("/api/dev/demo-session", { headers: headers(sophie) });
   expect(fixture.ok()).toBe(true);
   const { id } = await fixture.json();
+  const reset = await request.post("/api/dev/reset-demo", { headers: headers(sophie) });
+  expect(reset.ok()).toBe(true);
+  const initial = await request.get(`/api/sessions/${id}`, { headers: headers(sophie) });
+  expect(initial.ok()).toBe(true);
+  expect((await initial.json()).emailUnconfirmed).toBe(false);
   fs.writeFileSync(ready, "ready");
   await expect.poll(async () => {
     const response = await request.get(`/api/sessions/${id}`, { headers: headers(sophie) });
