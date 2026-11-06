@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import { trackingApi as api } from "../../lib/trackingApi";
 import TrackingMap from "./LazyTrackingMap";
 import TripStatusStepper from "./TripStatusStepper";
+// Délai maximal entre deux tentatives, y compris quand un proxy envoie un long Retry-After :
+// au-delà, les proches verraient une position ancienne présentée comme « bientôt actualisée ».
+const MAX_RETRY_MS = 60000;
+
 export default function PublicTripPage({ token }) {
   const [data, set] = useState(null),
     [error, E] = useState("");
@@ -61,8 +65,8 @@ export default function PublicTripPage({ token }) {
           nextAt =
             Date.now() +
             (Number.isFinite(parsed) && parsed > 0
-              ? parsed
-              : Math.min(60000, 5000 * 2 ** Math.min(failures, 4)));
+              ? Math.min(parsed, MAX_RETRY_MS)
+              : Math.min(MAX_RETRY_MS, 5000 * 2 ** Math.min(failures, 4)));
           E("Mise à jour retardée. Nouvelle tentative en cours.");
         } else {
           set(null);
