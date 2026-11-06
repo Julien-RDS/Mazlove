@@ -55,6 +55,9 @@ public class TrackingJobs {
                         "La séance est terminée. Le partage de position est arrêté et les liens de"
                             + " suivi sont révoqués. Merci de votre confiance.");
                   } catch (org.springframework.mail.MailException failure) {
+                    if (recipient.equals(s.getClient().getEmail()))
+                      s.setClientEmailUnconfirmed(true);
+                    else s.setProviderEmailUnconfirmed(true);
                     log.warn(
                         "Échec d'envoi de la confirmation de fin de séance : {}",
                         failure.getClass().getSimpleName());

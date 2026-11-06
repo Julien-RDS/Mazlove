@@ -187,6 +187,31 @@ test("prestataire : les demandes à traiter sont visibles en premier", async ({
     page.getByRole("link", { name: "Examiner la prochaine demande" }),
   ).toHaveAttribute("href", "#/seances/9");
 });
+test("séances : un email de fin non confirmé reste visible dans l’historique", async ({
+  page,
+}) => {
+  await fixtures(page, { signed: true });
+  await page.route("**/api/users/me/sessions?**", (r) =>
+    r.fulfill({
+      json: [
+        {
+          id: 10,
+          status: "DONE",
+          datetime: "2026-10-30T17:00:00",
+          duration: 1,
+          providerName: "Sophie",
+          viewerRole: "CLIENT",
+          emailUnconfirmed: true,
+        },
+      ],
+    }),
+  );
+  await page.goto("/#/seances");
+  await page.getByRole("button", { name: /Historique/ }).click();
+  await expect(
+    page.getByText("Envoi de l’email de fin non confirmé."),
+  ).toBeVisible();
+});
 test("visiteur : présentation et connexion, sans charger la carte ni les données privées", async ({
   page,
 }) => {

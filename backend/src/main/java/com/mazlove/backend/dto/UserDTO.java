@@ -49,6 +49,8 @@ public class UserDTO {
 
     /** true si le client a déjà laissé son avis (le bouton « Laisser un avis » disparaît). */
     private boolean reviewed;
+
+    private boolean emailUnconfirmed;
   }
 
   /** Avis rédigé par l'utilisateur connecté (pas besoin de répéter son identité). */

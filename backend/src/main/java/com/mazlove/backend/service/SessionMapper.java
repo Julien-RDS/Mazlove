@@ -69,6 +69,8 @@ public class SessionMapper {
     dto.setViewerRole(viewerIsClient ? "CLIENT" : "PROVIDER");
     dto.setArrivalCode(viewerIsClient ? session.getCodeValidation() : null);
     dto.setReviewed(reviewed);
+    dto.setEmailUnconfirmed(
+        viewerIsClient ? session.isClientEmailUnconfirmed() : session.isProviderEmailUnconfirmed());
     return dto;
   }
 }

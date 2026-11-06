@@ -73,6 +73,12 @@ public class Session {
   private LocalDateTime startedAt;
   private LocalDateTime endedAt;
 
+  @Column(nullable = false)
+  private boolean clientEmailUnconfirmed;
+
+  @Column(nullable = false)
+  private boolean providerEmailUnconfirmed;
+
   @PrePersist
   protected void onCreate() {
     createdAt = LocalDateTime.now();

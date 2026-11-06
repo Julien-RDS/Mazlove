@@ -61,6 +61,7 @@ Sur une base **déjà en phase 3**, appliquer avec `psql`, connecté à la bonne
 
 ```sh
 psql -v ON_ERROR_STOP=1 -f backend/src/main/resources/sql/migrations/004-tracking-reliability.sql
+psql -v ON_ERROR_STOP=1 -f backend/src/main/resources/sql/migrations/005-session-email-status.sql
 ```
 
 Cette migration transactionnelle et rejouable ajoute les index de sélection et la file d’emails SOS ; elle ne transforme pas les séances existantes. Les index classiques peuvent prendre des verrous : les créer pendant la maintenance. L’index unique `uq_provider_en_route` de phase 3 reste la garantie d’un seul trajet actif par prestataire.
@@ -79,7 +80,7 @@ Vérifications après démarrage : health 200 ; `/api/dev/login-as` absent ; fro
 
 ## Retour arrière
 
-Arrêter les nouveaux départs, terminer/annuler les trajets et arrêter le processus applicatif. Revenir au **backend et frontend ensemble** de la version précédemment déployée, dont les artefacts et la configuration ont été conservés, avec `prod` et `VITE_DEMO=false`. Vérifier ce retour sur une copie de la base avant le déploiement. Aucun des commits livrés après la phase 4 n'ajoute de migration SQL au-delà de `004` ; laisser les tables/index en place, sans migration destructive. `b83090a` est une référence historique de phase 3, pas une cible de retour par défaut : elle retire aussi les améliorations livrées depuis.
+Arrêter les nouveaux départs, terminer/annuler les trajets et arrêter le processus applicatif. Revenir au **backend et frontend ensemble** de la version précédemment déployée, dont les artefacts et la configuration ont été conservés, avec `prod` et `VITE_DEMO=false`. Vérifier ce retour sur une copie de la base avant le déploiement. La migration `005` ajoute deux colonnes que l'ancienne version ignore ; les conserver, sans migration destructive. `b83090a` est une référence historique de phase 3, pas une cible de retour par défaut : elle retire aussi les améliorations livrées depuis.
 
 Avant ce retour, traiter la file SOS : vérifier `PENDING`, `SENDING`, `FAILED` et `UNKNOWN` avec l’équipe, sans relancer aveuglément les messages incertains. Si la cible est antérieure à la phase 4, l’ancien backend ne dépile pas cette file : geler les envois ou prévenir directement les contacts concernés, et conserver les lignes pour le diagnostic. Un retour à la phase 3 réintroduit ses limites (GPS attaché à la console, sélection sur 50 séances, pas de fermeture STOMP à l’expiration).
 

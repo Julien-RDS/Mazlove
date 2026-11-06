@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS duration INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS service_item_id BIGINT REFERENCES service_items(id) ON DELETE SET NULL;
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS price_snapshot REAL;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS client_email_unconfirmed BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS provider_email_unconfirmed BOOLEAN NOT NULL DEFAULT false;
 
 -- Avis (entité Review). provider_id est dénormalisé depuis sessions.provider_id
 -- pour lister les avis et calculer la note moyenne d'un praticien sans double jointure.

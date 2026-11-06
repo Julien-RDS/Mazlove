@@ -63,7 +63,10 @@ export function SessionsScreen({ user }) {
   }, [sessions]);
 
   const list = tab === "upcoming" ? upcoming : past;
-  const pending = user.role === "PROVIDER" ? upcoming.filter((s) => s.status === "PENDING") : [];
+  const pending =
+    user.role === "PROVIDER"
+      ? upcoming.filter((s) => s.status === "PENDING")
+      : [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 pt-2">
@@ -89,8 +92,13 @@ export function SessionsScreen({ user }) {
       )}
 
       {status === "ready" && pending.length > 0 && (
-        <Notice title={`${pending.length} ${pending.length === 1 ? "demande attend" : "demandes attendent"} votre réponse`}>
-          <a className="font-bold underline" href={`#/seances/${pending[0].id}`}>
+        <Notice
+          title={`${pending.length} ${pending.length === 1 ? "demande attend" : "demandes attendent"} votre réponse`}
+        >
+          <a
+            className="font-bold underline"
+            href={`#/seances/${pending[0].id}`}
+          >
             Examiner la prochaine demande
           </a>
         </Notice>
@@ -193,12 +201,14 @@ function SessionRow({ session }) {
           {formatTimeRange(start, session.duration)}
           {!asClient && ", réservation reçue"}
         </span>
+        {session.emailUnconfirmed && (
+          <span className="mt-1 block text-sm font-bold text-alerte">
+            Envoi de l’email de fin non confirmé.
+          </span>
+        )}
         {reviewPending && (
           <span className="mt-1 inline-flex items-center gap-1 text-[0.95rem] font-bold">
-            <Star
-              className="h-4 w-4 fill-rose text-rose"
-              aria-hidden="true"
-            />
+            <Star className="h-4 w-4 fill-rose text-rose" aria-hidden="true" />
             Avis à laisser
           </span>
         )}

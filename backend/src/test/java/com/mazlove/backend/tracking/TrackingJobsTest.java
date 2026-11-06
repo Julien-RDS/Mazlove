@@ -56,6 +56,8 @@ class TrackingJobsTest {
                         && String.valueOf(map.get("message"))
                             .contains("n’a pas pu être confirmé")));
     verify(email).sendText(eq("provider@example.test"), anyString(), anyString());
+    verify(session).setClientEmailUnconfirmed(true);
+    verify(session, never()).setProviderEmailUnconfirmed(true);
   }
 
   final JdbcTemplate db = mock(JdbcTemplate.class);
