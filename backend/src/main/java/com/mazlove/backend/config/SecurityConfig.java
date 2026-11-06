@@ -191,6 +191,7 @@ public class SecurityConfig {
     config.setAllowedOrigins(allowedOrigins);
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Accept-Language"));
+    config.setExposedHeaders(List.of("Retry-After"));
     config.setAllowCredentials(true);
     config.setMaxAge(3600L);
 

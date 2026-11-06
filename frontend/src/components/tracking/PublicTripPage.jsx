@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { trackingApi as api } from "../../lib/trackingApi";
 import TrackingMap from "./LazyTrackingMap";
 import TripStatusStepper from "./TripStatusStepper";
-import { startVisiblePolling } from "../../lib/visiblePolling";
 export default function PublicTripPage({ token }) {
   const [data, set] = useState(null),
     [error, E] = useState("");
@@ -10,8 +9,26 @@ export default function PublicTripPage({ token }) {
     let active = true;
     set(null);
     E("");
-    const poll = startVisiblePolling(
-      async (signal) => {
+    let timer,
+      controller,
+      running = false,
+      failures = 0,
+      nextAt = 0;
+    const schedule = () => {
+      clearTimeout(timer);
+      if (active && !document.hidden)
+        timer = setTimeout(load, Math.max(0, nextAt - Date.now()));
+    };
+    const load = async () => {
+      if (!active || document.hidden || running) return;
+      if (Date.now() < nextAt) {
+        schedule();
+        return;
+      }
+      running = true;
+      controller = new AbortController();
+      const signal = controller.signal;
+      try {
         const result = await api(
           `/public/trips/${encodeURIComponent(token)}`,
           null,
@@ -22,21 +39,52 @@ export default function PublicTripPage({ token }) {
         if (active && !signal.aborted) {
           set(result);
           E("");
+          failures = 0;
+          nextAt = Date.now() + 5000;
         }
-      },
-      5000,
-      {
-        onError: (e) => {
-          if (active) {
-            set(null);
-            E(e.message);
-          }
-        },
-      },
-    );
+      } catch (e) {
+        if (!active || e.name === "AbortError") return;
+        if (e.status === 404 || e.status === 410) {
+          set(null);
+          E(e.message);
+          active = false;
+          return;
+        }
+        if (e.status === 429 || !e.status || e.status >= 500) {
+          failures++;
+          const retry = e.retryAfter;
+          const parsed =
+            retry &&
+            (/^\d+$/.test(retry)
+              ? Number(retry) * 1000
+              : Date.parse(retry) - Date.now());
+          nextAt =
+            Date.now() +
+            (Number.isFinite(parsed) && parsed > 0
+              ? parsed
+              : Math.min(60000, 5000 * 2 ** Math.min(failures, 4)));
+          E("Mise à jour retardée. Nouvelle tentative en cours.");
+        } else {
+          set(null);
+          E(e.message);
+          nextAt = Date.now() + 30000;
+        }
+      } finally {
+        running = false;
+        schedule();
+      }
+    };
+    const visible = () => {
+      if (!document.hidden) schedule();
+      else clearTimeout(timer);
+    };
+    document.addEventListener("visibilitychange", visible);
+    schedule();
     return () => {
       active = false;
-      poll.stop();
+      clearTimeout(timer);
+      controller?.abort();
+      document.removeEventListener("visibilitychange", visible);
     };
   }, [token]);
   return (

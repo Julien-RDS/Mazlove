@@ -38,6 +38,7 @@ export async function trackingApi(
       value?.message || "Action indisponible. Réessayez.",
     );
     error.status = response.status;
+    error.retryAfter = response.headers.get("Retry-After");
     throw error;
   }
   return value;

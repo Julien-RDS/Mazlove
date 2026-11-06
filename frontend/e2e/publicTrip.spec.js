@@ -1,5 +1,47 @@
 import { test, expect } from "@playwright/test";
 
+test("quota : conserve la position et respecte Retry-After avant reprise", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.route("https://tiles.openfreemap.org/**", (r) =>
+    r.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  );
+  let calls = 0;
+  await page.route("**/api/public/trips/**", (r) => {
+    calls++;
+    if (calls === 2)
+      return r.fulfill({
+        status: 429,
+        headers: { "Retry-After": "20" },
+        json: { message: "Quota atteint" },
+      });
+    return r.fulfill({
+      json: {
+        providerName: calls === 1 ? "Sophie" : "Sophie actualisée",
+        status: "EN_ROUTE",
+        pos: null,
+      },
+    });
+  });
+  await page.goto("/t/test-token");
+  await expect(
+    page.getByRole("heading", { name: "Sophie", exact: true }),
+  ).toBeVisible();
+  await page.clock.runFor(5000);
+  await expect(page.getByRole("alert")).toContainText("Mise à jour retardée");
+  await expect(
+    page.getByRole("heading", { name: "Sophie", exact: true }),
+  ).toBeVisible();
+  await page.clock.runFor(19000);
+  expect(calls).toBe(2);
+  await page.clock.runFor(1000);
+  await expect(
+    page.getByRole("heading", { name: "Sophie actualisée" }),
+  ).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
 test("lien partagé : aucune requête simultanée et effacement après révocation", async ({
   page,
 }) => {
