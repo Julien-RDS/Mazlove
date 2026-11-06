@@ -93,6 +93,12 @@ les paramètres locaux de PostgreSQL, Redis, SMTP et JWT :
    Le test livre le premier email, arrête ce conteneur précis, puis vérifie l'échec du second
    et attend le contrôle navigateur. Redémarrer le MailHog jetable si d'autres tests suivent.
 
+Pour valider le proxy Nginx fourni dans un environnement jetable, servir le `dist` construit
+avec `frontend/nginx.conf`, relier son nom `backend` au backend de test, et configurer l'origine
+autorisée côté backend. Lancer le parcours `tracking.spec.js` avec `BASE_URL` pointant vers ce
+Nginx et `MAZLOVE_TEST_NGINX=true` : il vérifie les en-têtes, le cache, le 404 des assets et
+une connexion STOMP reçue par chacun des deux navigateurs, en plus du parcours complet.
+
 Les tests HTTP/STOMP ouvrent leur propre port applicatif éphémère, sans démarrer de base ni de conteneur. Le parcours navigateur réel attend les applications existantes. Pour ce dernier, utiliser uniquement l’environnement de test avec les comptes fictifs, le profil dev et le seed ; ces réglages ne doivent jamais être copiés en production.
 
 ## Limites restantes

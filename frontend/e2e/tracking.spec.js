@@ -22,6 +22,30 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
     });
   const cp = await client.newPage(),
     pp = await provider.newPage();
+  const connectedPages = new Set();
+  if (process.env.MAZLOVE_TEST_NGINX === "true") {
+    const index = await request.get("/");
+    expect(index.status()).toBe(200);
+    expect(index.headers()["referrer-policy"]).toBe("no-referrer");
+    const asset = (await index.text()).match(/\/assets\/[^"\s]+\.js/);
+    expect(asset).not.toBeNull();
+    const js = await request.get(asset[0]);
+    expect(js.status()).toBe(200);
+    expect(js.headers()["referrer-policy"]).toBe("no-referrer");
+    expect(js.headers()["cache-control"]).toContain("immutable");
+    expect((await request.get("/assets/absent-e2e.js")).status()).toBe(404);
+    const shared = await request.get("/t/controle");
+    expect(shared.status()).toBe(200);
+    expect(shared.headers()["referrer-policy"]).toBe("no-referrer");
+    for (const page of [cp, pp]) {
+      page.on("websocket", (socket) => {
+        if (!new URL(socket.url()).pathname.startsWith("/ws")) return;
+        socket.on("framereceived", (frame) => {
+          if (String(frame.payload).includes("CONNECTED\n")) connectedPages.add(page);
+        });
+      });
+    }
+  }
   const login = async (email, page) => {
     const mailhog = process.env.MAILHOG_URL || "http://127.0.0.1:8025";
     const inbox = async () => {
@@ -95,6 +119,8 @@ test("consentement, GPS réel émulé, arrivée, code, fin", async ({
     await consent.click();
   }
   await pp.getByRole("button", { name: "Je pars", exact: true }).click();
+  if (process.env.MAZLOVE_TEST_NGINX === "true")
+    await expect.poll(() => connectedPages.size, { timeout: 15000 }).toBe(2);
   await expect(cp.getByText("Statut : En route")).toBeVisible();
   const snapshot = async () =>
     (await request.get(`/api/tracking/${id}/snapshot`, { headers })).json();
